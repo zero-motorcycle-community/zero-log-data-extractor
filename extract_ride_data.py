@@ -40,7 +40,7 @@ class LogEntry:
                     self.timestamp = None
             message = log_text[33:].strip()
             [self.event_type, self.event] = self.type_and_event_from_message(message)
-            if self.has_conditions():
+            if self.has_expected_conditions():
                 self.event = log_text[33:59].strip()
                 self.conditions = self.conditions_to_dict(log_text[60:].strip())
             elif self.is_notice() and ':' in self.event and ',' in self.event:
@@ -108,7 +108,7 @@ class LogEntry:
     def is_notice(self):
         return self.event_type in ['INFO', 'DEBUG', 'WARNING']
 
-    def has_conditions(self):
+    def has_expected_conditions(self):
         return (not self.is_notice() and
                 self.event_type not in ['BINARY', 'CONNECTED', 'DISCONNECTED'])
 
@@ -127,11 +127,11 @@ class LogEntry:
     def formatted_value(self, key):
         if hasattr(self, key):
             return str(getattr(self, key))
-        elif self.has_conditions() and key in self.conditions:
+        elif key in self.conditions:
             value = self.conditions[key]
             if re.match(r"^\d*\.?\d+[VAC]$", value):
                 return value[:-1]
-            if re.match(r"^\d*\.\d+mV$", value):
+            if re.match(r"^\d*\.?\d+mV$", value):
                 return str(int(value[:-2]) / 1000)
             return value
         return ''
@@ -157,32 +157,34 @@ class LogFile:
     header: LogHeader
     entries: List[LogEntry]
 
-    tabular_headers = ['entry',
-                       'timestamp',
-                       'component',
-                       'event_type',
-                       'event']
+    common_headers = ['entry',
+                      'timestamp',
+                      'component',
+                      'event_type',
+                      'event']
 
-    def __init__(self, log_filepath):
-        with open(log_filepath) as log_file:
+    def __init__(self, input_filepath):
+        with open(input_filepath) as log_file:
             # Read header:
             self.header = LogHeader(log_file)
             # Read and process log entries:
             self.entries = [LogEntry(line) for line in log_file.readlines()]
 
+    def decorate_entries_with_riding_charging_phases(self):
+        pass
+
     @property
     def all_conditions_keys(self):
         conditions_keys = []
         for entry in self.entries:
-            if entry.has_conditions():
-                for k in entry.conditions.keys():
-                    if k not in conditions_keys:
-                        conditions_keys.append(k)
+            for k in entry.conditions.keys():
+                if k not in conditions_keys:
+                    conditions_keys.append(k)
         return conditions_keys
 
     @property
     def headers(self):
-        return self.tabular_headers + self.all_conditions_keys
+        return self.common_headers + self.all_conditions_keys
 
 
 if __name__ == "__main__":
