@@ -26,7 +26,7 @@ class LogEntry():
     entry: int
     event: str
     event_type: str
-    conditions: str
+    conditions: dict
 
     def __init__(self, log_text):
         try:
@@ -41,9 +41,9 @@ class LogEntry():
             [self.event_type, self.event] = self.type_and_event_from_message(message)
             if self.has_conditions():
                 self.event = log_text[33:59].strip()
-                self.conditions = log_text[60:].strip()
+                self.conditions = self.conditions_to_dict(log_text[60:].strip())
             else:
-                self.conditions = None
+                self.conditions = {}
         except Exception as e:
             print(log_text)
             raise e
@@ -81,14 +81,10 @@ class LogEntry():
     @classmethod
     def conditions_to_dict(cls, conditions: str) -> dict:
         result = {}
-        if ',' in conditions:
-            for condition_element in conditions.split(r",\s*"):
-                [key, value] = re.split(r"\s*:\s*", condition_element)
-                result[key] = value
-        else:
-            key_positions = re.findall(r"[A-Za-z]+:\s*", conditions)
-            for i,j in zip(key_positions[0::2], key_positions[1::2]):
-                result[i.group(0).trim()] = conditions[i.end(0):j.start(0)]
+        key_positions = [match for match in
+                         re.finditer(r",?\s*([A-Za-z]+\s*[A-Za-z]+):\s*", conditions)]
+        for i,j in zip(key_positions[0::2], key_positions[1::2]):
+            result[i.group(1)] = conditions[i.end(0):j.start(0)]
         return result
 
     @property
@@ -108,17 +104,12 @@ class LogEntry():
         return (not self.is_notice() and
                 self.event_type not in ['BINARY', 'CONNECTED', 'DISCONNECTED'])
 
-    def conditions_dict(self):
-        if self.conditions:
-            return self.conditions_to_dict(self.conditions)
-        return None
-
     def is_ride_entry(self):
         return self.entry == 'Riding'
 
     def ride_conditions(self):
         if self.is_ride_entry():
-            return self.conditions_dict()
+            return self.conditions
         else:
             return None
 
@@ -132,7 +123,7 @@ class LogEntry():
             self.component,
             self.event_type,
             self.event,
-            self.conditions and self.conditions or ''])
+            self.conditions and str(self.conditions) or ''])
 
     def to_tsv(self):
         return self.to_csv(sep='\t')
