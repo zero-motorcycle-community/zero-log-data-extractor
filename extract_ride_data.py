@@ -42,7 +42,7 @@ class LogEntry():
             if self.has_conditions():
                 self.event = log_text[33:59].strip()
                 self.conditions = self.conditions_to_dict(log_text[60:].strip())
-            elif self.is_notice() and ':' in self.event:
+            elif self.is_notice() and ':' in self.event and ',' in self.event:
                 self.conditions = self.conditions_to_dict(self.event)
                 self.event = ''
             else:
@@ -71,6 +71,9 @@ class LogEntry():
         elif message.startswith('DEBUG:'):
             event_type = 'DEBUG'
             event_contents = message[7:]
+        elif message.startswith('- DEBUG:'):
+            event_type = 'DEBUG'
+            event_contents = message[9:]
         elif message.startswith('WARNING:'):
             event_type = 'WARNING'
             event_contents = message[8:]
