@@ -6,7 +6,7 @@ import re
 import json
 
 
-class LogHeader():
+class LogHeader:
     def __init__(self, log_input_file):
         self.log_title = log_input_file.readline()
         log_input_file.readline()
@@ -22,7 +22,7 @@ class LogHeader():
         self.column_divider = log_input_file.readline()
 
 
-class LogEntry():
+class LogEntry:
     entry: int
     event: str
     event_type: str
@@ -90,7 +90,7 @@ class LogEntry():
         result = {}
         key_positions = [match for match in
                          re.finditer(r",?\s*([A-Za-z]+\s*[A-Za-z]+):\s*", conditions)]
-        for i,j in zip(key_positions[0::2], key_positions[1::2]):
+        for i, j in zip(key_positions[0::2], key_positions[1::2]):
             result[i.group(1)] = conditions[i.end(0):j.start(0)]
         return result
 
@@ -150,6 +150,7 @@ tabular_headers = ['Entry', 'Timestamp', 'Component', 'Type', 'Event', 'Conditio
 
 if __name__ == "__main__":
     import argparse
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--format", default='tsv',
                         help="the output format desired: csv,tsv,json")
@@ -172,21 +173,20 @@ if __name__ == "__main__":
     with open(log_filepath) as log_file:
         # Read header:
         header_info = LogHeader(log_file)
-        with open(output_filepath, 'w') as output:
-            # Read log entries:
-            line = log_file.readline()
-            # Write header:
-            if output_format == 'csv':
-                output.write(','.join(tabular_headers) + line_sep)
-            elif output_format == 'tsv':
-                output.write('\t'.join(tabular_headers) + line_sep)
-            # Process log entries:
-            while line:
-                log_entry = LogEntry(line)
-                if output_format == "csv":
-                    output.write(log_entry.to_csv() + line_sep)
-                elif output_format == "tsv":
-                    output.write(log_entry.to_tsv() + line_sep)
-                elif output_format == "json":
-                    output.write(log_entry.to_json() + ',' + line_sep)
-                line = log_file.readline()
+        # Read and process log entries:
+        log_entries = [LogEntry(line) for line in log_file.readlines()]
+
+    with open(output_filepath, 'w') as output:
+        # Write header:
+        if output_format == 'csv':
+            output.write(','.join(tabular_headers) + line_sep)
+        elif output_format == 'tsv':
+            output.write('\t'.join(tabular_headers) + line_sep)
+        # Write log entries:
+        for log_entry in log_entries:
+            if output_format == "csv":
+                output.write(log_entry.to_csv() + line_sep)
+            elif output_format == "tsv":
+                output.write(log_entry.to_tsv() + line_sep)
+            elif output_format == "json":
+                output.write(log_entry.to_json() + ',' + line_sep)
