@@ -124,17 +124,23 @@ class LogEntry:
     def is_charge_entry(self):
         return self.entry == 'Charging'
 
-    def to_csv(self, sep=','):
-        return sep.join([
-            str(self.entry),
-            self.timestamp and str(self.timestamp) or '',
-            self.component,
-            self.event_type,
-            self.event,
-            self.conditions and str(self.conditions) or ''])
+    def formatted_value(self, key):
+        if hasattr(self, key):
+            return str(getattr(self, key))
+        elif self.has_conditions() and key in self.conditions:
+            value = self.conditions[key]
+            if re.match(r"^\d*\.?\d+[VAC]$", value):
+                return value[:-1]
+            if re.match(r"^\d*\.\d+mV$", value):
+                return str(int(value[:-2]) / 1000)
+            return value
+        return ''
 
-    def to_tsv(self):
-        return self.to_csv(sep='\t')
+    def to_csv(self, headers, sep=','):
+        return sep.join([self.formatted_value(key) for key in headers])
+
+    def to_tsv(self, headers):
+        return self.to_csv(headers, sep='\t')
 
     def to_json(self):
         return json.dumps({
@@ -151,6 +157,12 @@ class LogFile:
     header: LogHeader
     entries: List[LogEntry]
 
+    tabular_headers = ['entry',
+                       'timestamp',
+                       'component',
+                       'event_type',
+                       'event']
+
     def __init__(self, log_filepath):
         with open(log_filepath) as log_file:
             # Read header:
@@ -158,8 +170,20 @@ class LogFile:
             # Read and process log entries:
             self.entries = [LogEntry(line) for line in log_file.readlines()]
 
+    @property
+    def all_conditions_keys(self):
+        conditions_keys = []
+        for entry in self.entries:
+            if entry.has_conditions():
+                for k in entry.conditions.keys():
+                    if k not in conditions_keys:
+                        conditions_keys.append(k)
+        return conditions_keys
 
-tabular_headers = ['Entry', 'Timestamp', 'Component', 'Type', 'Event', 'Conditions']
+    @property
+    def headers(self):
+        return self.tabular_headers + self.all_conditions_keys
+
 
 if __name__ == "__main__":
     import argparse
@@ -187,15 +211,16 @@ if __name__ == "__main__":
 
     with open(output_filepath, 'w') as output:
         # Write header:
+        log_headers = log.headers
         if output_format == 'csv':
-            output.write(','.join(tabular_headers) + line_sep)
+            output.write(','.join(log_headers) + line_sep)
         elif output_format == 'tsv':
-            output.write('\t'.join(tabular_headers) + line_sep)
+            output.write('\t'.join(log_headers) + line_sep)
         # Write log entries:
         for log_entry in log.entries:
             if output_format == "csv":
-                output.write(log_entry.to_csv() + line_sep)
+                output.write(log_entry.to_csv(log_headers) + line_sep)
             elif output_format == "tsv":
-                output.write(log_entry.to_tsv() + line_sep)
+                output.write(log_entry.to_tsv(log_headers) + line_sep)
             elif output_format == "json":
                 output.write(log_entry.to_json() + ',' + line_sep)
