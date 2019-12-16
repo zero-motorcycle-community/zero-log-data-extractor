@@ -42,6 +42,9 @@ class LogEntry():
             if self.has_conditions():
                 self.event = log_text[33:59].strip()
                 self.conditions = self.conditions_to_dict(log_text[60:].strip())
+            elif self.is_notice() and ':' in self.event:
+                self.conditions = self.conditions_to_dict(self.event)
+                self.event = ''
             else:
                 self.conditions = {}
         except Exception as e:
