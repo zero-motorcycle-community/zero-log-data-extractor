@@ -4,6 +4,7 @@ import os
 from datetime import datetime
 import re
 import json
+from typing import List
 
 
 class LogHeader:
@@ -146,6 +147,18 @@ class LogEntry:
         })
 
 
+class LogFile:
+    header: LogHeader
+    entries: List[LogEntry]
+
+    def __init__(self, log_filepath):
+        with open(log_filepath) as log_file:
+            # Read header:
+            self.header = LogHeader(log_file)
+            # Read and process log entries:
+            self.entries = [LogEntry(line) for line in log_file.readlines()]
+
+
 tabular_headers = ['Entry', 'Timestamp', 'Component', 'Type', 'Event', 'Conditions']
 
 if __name__ == "__main__":
@@ -164,17 +177,13 @@ if __name__ == "__main__":
     if not os.path.exists(log_filepath):
         print("Log file does not exist: ", log_filepath)
         exit(1)
+    log = LogFile(log_filepath)
+
     output_format = args.format
     line_sep = os.linesep
     output_filepath = args.outfile
     if not output_filepath:
         output_filepath = log_filepath + '.' + output_format
-
-    with open(log_filepath) as log_file:
-        # Read header:
-        header_info = LogHeader(log_file)
-        # Read and process log entries:
-        log_entries = [LogEntry(line) for line in log_file.readlines()]
 
     with open(output_filepath, 'w') as output:
         # Write header:
@@ -183,7 +192,7 @@ if __name__ == "__main__":
         elif output_format == 'tsv':
             output.write('\t'.join(tabular_headers) + line_sep)
         # Write log entries:
-        for log_entry in log_entries:
+        for log_entry in log.entries:
             if output_format == "csv":
                 output.write(log_entry.to_csv() + line_sep)
             elif output_format == "tsv":
