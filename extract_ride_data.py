@@ -23,6 +23,11 @@ class LogHeader():
 
 
 class LogEntry():
+    entry: int
+    event: str
+    event_type: str
+    conditions: str
+
     def __init__(self, log_text):
         try:
             self.entry = int(log_text[:9].strip())
@@ -73,6 +78,29 @@ class LogEntry():
             event_contents = message[:-4]
         return [event_type, event_contents]
 
+    @classmethod
+    def conditions_to_dict(cls, conditions: str) -> dict:
+        result = {}
+        if ',' in conditions:
+            for condition_element in conditions.split(r",\s*"):
+                [key, value] = re.split(r"\s*:\s*", condition_element)
+                result[key] = value
+        else:
+            key_positions = re.findall(r"[A-Za-z]+:\s*", conditions)
+            for i,j in zip(key_positions[0::2], key_positions[1::2]):
+                result[i.group(0).trim()] = conditions[i.end(0):j.start(0)]
+        return result
+
+    @property
+    def component(self):
+        if self.event.startswith('Module '):
+            return 'BMS'
+        elif 'Sevcon' in self.event:
+            return 'Controller'
+        elif 'Calex' in self.event:
+            return 'Charger'
+        return 'MBB'
+
     def is_notice(self):
         return self.event_type in ['INFO', 'DEBUG', 'WARNING']
 
@@ -80,8 +108,19 @@ class LogEntry():
         return (not self.is_notice() and
                 self.event_type not in ['BINARY', 'CONNECTED', 'DISCONNECTED'])
 
+    def conditions_dict(self):
+        if self.conditions:
+            return self.conditions_to_dict(self.conditions)
+        return None
+
     def is_ride_entry(self):
         return self.entry == 'Riding'
+
+    def ride_conditions(self):
+        if self.is_ride_entry():
+            return self.conditions_dict()
+        else:
+            return None
 
     def is_charge_entry(self):
         return self.entry == 'Charging'
@@ -90,6 +129,7 @@ class LogEntry():
         return sep.join([
             str(self.entry),
             self.timestamp and str(self.timestamp) or '',
+            self.component,
             self.event_type,
             self.event,
             self.conditions and self.conditions or ''])
@@ -101,13 +141,14 @@ class LogEntry():
         return json.dumps({
             'entry': self.entry,
             'timestamp': self.timestamp and str(self.timestamp) or '',
+            'component': self.component,
             'event_type': self.event_type,
             'event': self.event,
             'conditions': self.conditions
         })
 
 
-tabular_headers = ['Entry', 'Timestamp', 'Type', 'Event', 'Conditions']
+tabular_headers = ['Entry', 'Timestamp', 'Component', 'Type', 'Event', 'Conditions']
 
 if __name__ == "__main__":
     import argparse
