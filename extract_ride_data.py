@@ -56,7 +56,8 @@ class LogEntry():
         event_type = ''
         event_contents = message
         if message.startswith('0x'):
-            event_type = 'BINARY'
+            event_type = 'UNKNOWN'
+            event_contents = ''
         elif re.match('^[A-Z][a-z]+ing', message):
             event_type = message.split(' ')[0].upper()
             event_contents = ''
