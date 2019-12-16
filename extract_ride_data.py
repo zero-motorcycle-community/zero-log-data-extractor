@@ -121,7 +121,7 @@ class LogEntry:
 
     def has_expected_conditions(self):
         return (not self.is_notice() and
-                self.event_type not in ['BINARY', 'CONNECTED', 'DISCONNECTED'])
+                self.event_type not in ['UNKNOWN', 'CONNECTED', 'DISCONNECTED'])
 
     def is_ride_entry(self):
         return self.entry == 'Riding'
