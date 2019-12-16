@@ -92,7 +92,18 @@ class LogEntry:
         key_positions = [match for match in
                          re.finditer(r",?\s*([A-Za-z]+\s*[A-Za-z]+):\s*", conditions)]
         for i, j in zip(key_positions[0::2], key_positions[1::2]):
-            result[i.group(1)] = conditions[i.end(0):j.start(0)]
+            key = i.group(1)
+            value = conditions[i.end(0):j.start(0)]
+            if ',' in value:
+                values = re.split(r",\s*", value)
+                for each_value in values:
+                    if ' ' in each_value:
+                        each_key, each_val = re.split(r"\s+", each_value)
+                        result[key + ' (' + each_key + ')'] = each_val
+                    else:
+                        result[key] = value
+            else:
+                result[key] = value
         return result
 
     @property
