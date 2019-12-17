@@ -66,7 +66,7 @@ class LogEntry:
             for k, v in self.decode_message(message).items():
                 setattr(self, k, v)
         except Exception as e:
-            print(index, log_text)
+            print("Decoding line #{} failed from content: {}".format(index, log_text))
             raise e
 
     @classmethod
@@ -270,6 +270,7 @@ if __name__ == "__main__":
     if not os.path.exists(log_filepath):
         print("Log file does not exist: ", log_filepath)
         exit(1)
+    print('Reading log: {}'.format(log_filepath))
     log = LogFile(log_filepath)
 
     output_format = args.format
@@ -278,6 +279,7 @@ if __name__ == "__main__":
     if not output_filepath:
         output_filepath = os.path.splitext(log_filepath)[0] + '.' + output_format
 
+    print('Emitting output: {}'.format(output_filepath))
     with open(output_filepath, 'w') as output:
         log_headers = log.headers
         if output_format == 'csv':
