@@ -157,7 +157,7 @@ class LogEntry:
     def conditions_to_dict(cls, conditions: str) -> dict:
         result = {}
         key_positions = [match for match in
-                         re.finditer(r",?\s*([A-Za-z]+\s*[A-Za-z]+):\s*", conditions)]
+                         re.finditer(r",?\s*([A-Za-z]+\s*[A-Za-z]*):\s*", conditions)]
         for i, j in zip(key_positions[0::2], key_positions[1::2]):
             key = i.group(1)
             value = conditions[i.end(0):j.start(0)]
