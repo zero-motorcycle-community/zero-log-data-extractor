@@ -66,8 +66,8 @@ class LogEntry:
             for k, v in self.decode_message(message).items():
                 setattr(self, k, v)
         except Exception as e:
+            self.conditions = {}
             print("Decoding line #{} failed from content: {}".format(index, log_text))
-            raise e
 
     @classmethod
     def decode_message(cls, message: str) -> dict:
