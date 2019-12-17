@@ -7,20 +7,42 @@ import json
 from typing import List
 
 
+def print_value_tabular(value):
+    if value is None:
+        return ''
+    else:
+        return str(value)
+
+
+def value_from_header_line(header_line: str) -> str:
+    return re.split(r"\s\s+", header_line.strip())[-1]
+
+
 class LogHeader:
     def __init__(self, log_input_file):
-        self.log_title = log_input_file.readline()
+        self.log_title = log_input_file.readline().strip()
         log_input_file.readline()
-        self.serial_no = log_input_file.readline()
-        self.vin = log_input_file.readline()
-        self.firmware_rev = log_input_file.readline()
-        self.board_rev = log_input_file.readline()
-        self.model = log_input_file.readline()
+        self.serial_no = value_from_header_line(log_input_file.readline())
+        self.vin = value_from_header_line(log_input_file.readline())
+        self.firmware_rev = value_from_header_line(log_input_file.readline())
+        self.board_rev = value_from_header_line(log_input_file.readline())
+        self.model = value_from_header_line(log_input_file.readline())
         log_input_file.readline()
-        self.log_entries_count = log_input_file.readline()
+        self.log_entries_count = re.findall(r"\d+", log_input_file.readline())
         log_input_file.readline()
         self.column_headings = log_input_file.readline()
         self.column_divider = log_input_file.readline()
+
+    def to_json(self):
+        return {
+            'title': self.log_title,
+            'serial_no': self.serial_no,
+            'vin': self.vin,
+            'firmware_rev': self.firmware_rev,
+            'board_rev': self.board_rev,
+            'model': self.model,
+            'num_entries': self.log_entries_count
+        }
 
 
 class LogEntry:
@@ -151,26 +173,26 @@ class LogEntry:
     def is_notice(self):
         return self.event_type in ['INFO', 'DEBUG', 'WARNING', 'ERROR']
 
-    def formatted_value(self, key):
+    def print_property_tabular(self, key):
         if hasattr(self, key):
-            return str(getattr(self, key))
+            return print_value_tabular(getattr(self, key))
         elif key in self.conditions:
             value = self.conditions[key]
             if re.match(r"^\d*\.?\d+[VAC]$", value):
                 return value[:-1]
             if re.match(r"^\d*\.?\d+mV$", value):
-                return str(int(value[:-2]) / 1000)
+                return print_value_tabular(int(value[:-2]) / 1000)
             return value
         return ''
 
     def to_csv(self, headers, sep=','):
-        return sep.join([self.formatted_value(key) for key in headers])
+        return sep.join([self.print_property_tabular(key) for key in headers])
 
     def to_tsv(self, headers):
         return self.to_csv(headers, sep='\t')
 
     def to_json(self):
-        return json.dumps({
+        return {
             'entry': self.entry,
             'timestamp': self.timestamp and str(self.timestamp) or '',
             'component': self.component,
@@ -178,7 +200,7 @@ class LogEntry:
             'event_level': self.event_level,
             'event': self.event,
             'conditions': self.conditions
-        })
+        }
 
 
 class LogFile:
@@ -215,6 +237,12 @@ class LogFile:
     def headers(self):
         return self.common_headers + self.all_conditions_keys
 
+    def to_json(self):
+        return {
+            'header': self.header.to_json(),
+            'entries': [entry_data.to_json() for entry_data in self.entries]
+        }
+
 
 if __name__ == "__main__":
     import argparse
@@ -245,13 +273,11 @@ if __name__ == "__main__":
         log_headers = log.headers
         if output_format == 'csv':
             output.write(','.join(log_headers) + line_sep)
+            for log_entry in log.entries:
+                output.write(log_entry.to_csv(log_headers) + line_sep)
         elif output_format == 'tsv':
             output.write('\t'.join(log_headers) + line_sep)
-        # Write log entries:
-        for log_entry in log.entries:
-            if output_format == 'csv':
-                output.write(log_entry.to_csv(log_headers) + line_sep)
-            elif output_format == 'tsv':
+            for log_entry in log.entries:
                 output.write(log_entry.to_tsv(log_headers) + line_sep)
-            elif output_format == 'json':
-                output.write(log_entry.to_json() + ',' + line_sep)
+        elif output_format == 'json':
+            output.write(json.dumps(log.to_json(), indent=2))
