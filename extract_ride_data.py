@@ -132,12 +132,20 @@ class LogEntry:
             conditions = cls.conditions_to_dict(conditions_field)
 
         # Identify special conditions in the event contents:
-        if event_contents.startswith('Batt Dischg Cur Limited'):
+        curr_limited_message = 'Batt Dischg Cur Limited'
+        if event_contents.startswith(curr_limited_message):
             matches = re.search(r"(\d+) A \((\d+\.?\d+%)\)", event_contents)
             if matches:
                 conditions['BattAmps'] = matches.group(1)
                 conditions['PackSOC'] = matches.group(2)
-                event_contents = 'Batt Dischg Cur Limited'
+                event_contents = curr_limited_message
+        low_chassis_isolation_message = 'Low Chassis Isolation'
+        if event_contents.startswith(low_chassis_isolation_message):
+            matches = re.search(r"(\d+ KOhms) to cell (\d+)", event_contents)
+            if matches:
+                conditions['ImpedanceKOhms'] = matches.group(1)
+                conditions['Cell'] = matches.group(2)
+                event_contents = low_chassis_isolation_message
 
         return {'event_type': event_type,
                 'event_level': event_level,
