@@ -274,18 +274,17 @@ if __name__ == "__main__":
     line_sep = os.linesep
     output_filepath = args.outfile
     if not output_filepath:
-        output_filepath = log_filepath + '.' + output_format
+        output_filepath = os.path.splitext(log_filepath)[0] + '.' + output_format
 
     with open(output_filepath, 'w') as output:
-        # Write header:
         log_headers = log.headers
         if output_format == 'csv':
-            output.write(','.join(log_headers) + line_sep)
-            for log_entry in log.entries:
+            output.write(','.join(log_headers) + line_sep)  # Write header
+            for log_entry in log.entries:  # Write entries:
                 output.write(log_entry.to_csv(log_headers) + line_sep)
         elif output_format == 'tsv':
-            output.write('\t'.join(log_headers) + line_sep)
-            for log_entry in log.entries:
+            output.write('\t'.join(log_headers) + line_sep)  # Write header
+            for log_entry in log.entries:  # Write entries:
                 output.write(log_entry.to_tsv(log_headers) + line_sep)
         elif output_format == 'json':
             output.write(json.dumps(log.to_json(), indent=2))
