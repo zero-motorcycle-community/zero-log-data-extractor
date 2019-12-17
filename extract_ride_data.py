@@ -26,7 +26,9 @@ class LogHeader:
 class LogEntry:
     entry: int
     event: str
+    event_level: str
     event_type: str
+    component: str
     conditions: dict
 
     def __init__(self, log_text):
@@ -37,54 +39,80 @@ class LogEntry:
                 try:
                     self.timestamp = datetime.strptime(timestamp_text, '%m/%d/%Y %H:%M:%S')
                 except ValueError:
-                    self.timestamp = None
+                    self.timestamp = ''
             message = log_text[33:].strip()
-            [self.event_type, self.event] = self.type_and_event_from_message(message)
-            if self.has_expected_conditions():
-                self.event = log_text[33:59].strip()
-                self.conditions = self.conditions_to_dict(log_text[60:].strip())
-            elif self.is_notice() and ':' in self.event and ',' in self.event:
-                self.conditions = self.conditions_to_dict(self.event)
-                self.event = ''
-            else:
-                self.conditions = {}
+            for k, v in self.decode_message(message).items():
+                setattr(self, k, v)
         except Exception as e:
             print(log_text)
             raise e
 
     @classmethod
-    def type_and_event_from_message(cls, message: str) -> [str]:
+    def decode_message(cls, message: str) -> dict:
         event_type = ''
         event_contents = message
-        if message.startswith('0x'):
+        event_level = ''
+        component = 'MBB'
+        conditions = {}
+
+        # Extract and strip log level:
+        if event_contents.startswith('INFO:'):
+            event_level = 'INFO'
+            event_contents = event_contents[6:].strip()
+        elif event_contents.startswith('DEBUG:'):
+            event_level = 'DEBUG'
+            event_contents = event_contents[7:].strip()
+        elif event_contents.startswith('- DEBUG:'):
+            event_level = 'DEBUG'
+            event_contents = event_contents[9:].strip()
+        elif event_contents.startswith('WARNING:'):
+            event_level = 'WARNING'
+            event_contents = event_contents[8:].strip()
+        elif event_contents.startswith('ERROR:'):
+            event_level = 'ERROR'
+            event_contents = event_contents[7:].strip()
+
+        # Check contents for event type:
+        if event_contents.startswith('0x'):
             event_type = 'UNKNOWN'
             event_contents = ''
-        elif re.match('^[A-Z][a-z]+ing', message):
-            event_type = message.split(' ')[0].upper()
-            event_contents = ''
-        elif message.endswith(' Connected'):
+        elif event_contents.startswith('Riding'):
+            event_type = 'RIDING'
+        elif event_contents.startswith('Charging'):
+            event_type = 'CHARGING'
+        elif event_contents.endswith(' Connected') or event_contents.endswith('Link Up'):
             event_type = 'CONNECTED'
-        elif message.endswith(' Disconnected'):
+        elif event_contents.endswith(' Disconnected') or event_contents.endswith('Link Down'):
             event_type = 'DISCONNECTED'
-        elif message.startswith('INFO:'):
-            event_type = 'INFO'
-            event_contents = message[6:]
-        elif message.startswith('DEBUG:'):
-            event_type = 'DEBUG'
-            event_contents = message[7:]
-        elif message.startswith('- DEBUG:'):
-            event_type = 'DEBUG'
-            event_contents = message[9:]
-        elif message.startswith('WARNING:'):
-            event_type = 'WARNING'
-            event_contents = message[8:]
-        elif message.endswith(' On') or ' On ' in message:
+        elif event_contents.endswith(' On') or ' On ' in event_contents:
             event_type = 'ON'
-            event_contents = message[:-3]
-        elif message.endswith(' Off') or ' Off ' in message:
+        elif event_contents.endswith(' Off') or ' Off ' in event_contents:
             event_type = 'OFF'
-            event_contents = message[:-4]
-        return [event_type, event_contents]
+        elif 'Limit' in event_contents:
+            event_type = 'LIMIT'
+
+        # Check contents for components:
+        if event_contents.startswith('Module '):
+            component = 'Battery'
+        elif 'Sevcon' in event_contents:
+            component = 'Controller'
+        elif 'Calex' in event_contents:
+            component = 'Charger'
+        elif 'External Chg' in event_contents:
+            component = 'External Charger'
+
+        first_keyword_match = re.search(r"[A-Za-z]+:", event_contents)
+        if first_keyword_match:
+            idx = first_keyword_match.start(0)
+            conditions_field = event_contents[idx:].strip()
+            event_contents = event_contents[:idx].strip()
+            conditions = cls.conditions_to_dict(conditions_field)
+
+        return {'event_type': event_type,
+                'event_level': event_level,
+                'component': component,
+                'event': event_contents,
+                'conditions': conditions}
 
     @classmethod
     def conditions_to_dict(cls, conditions: str) -> dict:
@@ -104,36 +132,15 @@ class LogEntry:
                         result[key] = value
             else:
                 result[key] = value
+        # Get the last key-value pair:
+        last_match = key_positions[-1]
+        key = last_match.group(1)
+        value = conditions[last_match.end(0):]
+        result[key] = value
         return result
 
-    @property
-    def component(self):
-        if self.event.startswith('Module '):
-            return 'BMS'
-        elif 'Sevcon' in self.event:
-            return 'Controller'
-        elif 'Calex' in self.event:
-            return 'Charger'
-        return 'MBB'
-
     def is_notice(self):
-        return self.event_type in ['INFO', 'DEBUG', 'WARNING']
-
-    def has_expected_conditions(self):
-        return (not self.is_notice() and
-                self.event_type not in ['UNKNOWN', 'CONNECTED', 'DISCONNECTED'])
-
-    def is_ride_entry(self):
-        return self.entry == 'Riding'
-
-    def ride_conditions(self):
-        if self.is_ride_entry():
-            return self.conditions
-        else:
-            return None
-
-    def is_charge_entry(self):
-        return self.entry == 'Charging'
+        return self.event_type in ['INFO', 'DEBUG', 'WARNING', 'ERROR']
 
     def formatted_value(self, key):
         if hasattr(self, key):
@@ -159,6 +166,7 @@ class LogEntry:
             'timestamp': self.timestamp and str(self.timestamp) or '',
             'component': self.component,
             'event_type': self.event_type,
+            'event_level': self.event_level,
             'event': self.event,
             'conditions': self.conditions
         })
@@ -172,6 +180,7 @@ class LogFile:
                       'timestamp',
                       'component',
                       'event_type',
+                      'event_level',
                       'event']
 
     def __init__(self, input_filepath):
@@ -231,9 +240,9 @@ if __name__ == "__main__":
             output.write('\t'.join(log_headers) + line_sep)
         # Write log entries:
         for log_entry in log.entries:
-            if output_format == "csv":
+            if output_format == 'csv':
                 output.write(log_entry.to_csv(log_headers) + line_sep)
-            elif output_format == "tsv":
+            elif output_format == 'tsv':
                 output.write(log_entry.to_tsv(log_headers) + line_sep)
-            elif output_format == "json":
+            elif output_format == 'json':
                 output.write(log_entry.to_json() + ',' + line_sep)
