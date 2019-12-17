@@ -53,7 +53,7 @@ class LogEntry:
     component: str
     conditions: dict
 
-    def __init__(self, index, log_text):
+    def __init__(self, log_text, index=None):
         try:
             self.entry = int(log_text[:9].strip())
             timestamp_text = log_text[10:32].strip()
@@ -227,7 +227,7 @@ class LogFile:
             # Read header:
             self.header = LogHeader(log_file)
             # Read and process log entries:
-            self.entries = [LogEntry(index, line)
+            self.entries = [LogEntry(line, index=index)
                             for index, line in enumerate(log_file.readlines())
                             if line and len(line) > 5]
 
