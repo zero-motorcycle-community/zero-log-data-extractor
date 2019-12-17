@@ -53,7 +53,7 @@ class LogEntry:
     component: str
     conditions: dict
 
-    def __init__(self, log_text):
+    def __init__(self, index, log_text):
         try:
             self.entry = int(log_text[:9].strip())
             timestamp_text = log_text[10:32].strip()
@@ -66,7 +66,7 @@ class LogEntry:
             for k, v in self.decode_message(message).items():
                 setattr(self, k, v)
         except Exception as e:
-            print(log_text)
+            print(index, log_text)
             raise e
 
     @classmethod
@@ -227,7 +227,9 @@ class LogFile:
             # Read header:
             self.header = LogHeader(log_file)
             # Read and process log entries:
-            self.entries = [LogEntry(line) for line in log_file.readlines()]
+            self.entries = [LogEntry(index, line)
+                            for index, line in enumerate(log_file.readlines())
+                            if line and len(line) > 5]
 
     def decorate_entries_with_riding_charging_phases(self):
         pass
