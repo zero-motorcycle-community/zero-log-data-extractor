@@ -51,9 +51,11 @@ class TestLogEntry(TestCase):
     Batt Dischg Cur Limited    281 A (40.72463768115942%), MinCell: 3383mV, MaxPackTemp: 34C''')
         self.assertEqual(7396, entry.entry)
         self.assertEqual('LIMIT', entry.event_type)
-        self.assertEqual('Batt Dischg Cur Limited    281 A (40.72463768115942%),', entry.event)
+        self.assertEqual('Batt Dischg Cur Limited', entry.event)
         self.assertDictEqual({'MinCell': '3383mV',
-                              'MaxPackTemp': '34C'},
+                              'MaxPackTemp': '34C',
+                              'BattAmps': '281',
+                              'PackSOC': '40.72463768115942%'},
                              entry.conditions)
 
     def test_error_entry(self):

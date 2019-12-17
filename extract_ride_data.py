@@ -92,7 +92,7 @@ class LogEntry:
             event_type = 'LIMIT'
 
         # Check contents for components:
-        if event_contents.startswith('Module '):
+        if event_contents.startswith('Module ') or 'Battery' in event_contents:
             component = 'Battery'
         elif 'Sevcon' in event_contents:
             component = 'Controller'
@@ -101,12 +101,21 @@ class LogEntry:
         elif 'External Chg' in event_contents:
             component = 'External Charger'
 
+        # Identify and parse out conditions data:
         first_keyword_match = re.search(r"[A-Za-z]+:", event_contents)
         if first_keyword_match:
             idx = first_keyword_match.start(0)
             conditions_field = event_contents[idx:].strip()
             event_contents = event_contents[:idx].strip()
             conditions = cls.conditions_to_dict(conditions_field)
+
+        # Identify special conditions in the event contents:
+        if event_contents.startswith('Batt Dischg Cur Limited'):
+            matches = re.search(r"(\d+) A \((\d+\.?\d+%)\)", event_contents)
+            if matches:
+                conditions['BattAmps'] = matches.group(1)
+                conditions['PackSOC'] = matches.group(2)
+                event_contents = 'Batt Dischg Cur Limited'
 
         return {'event_type': event_type,
                 'event_level': event_level,
