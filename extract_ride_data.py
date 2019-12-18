@@ -19,7 +19,9 @@ def value_from_header_line(header_line: str) -> str:
 
 
 class LogHeader:
-    def __init__(self, log_input_file):
+    def __init__(self, log_input_file, verbose=0):
+        if verbose > 0:
+            print("Reading header")
         self.log_title = log_input_file.readline().strip()
         log_input_file.readline()
         self.serial_no = value_from_header_line(log_input_file.readline())
@@ -53,8 +55,10 @@ class LogEntry:
     component: str
     conditions: dict
 
-    def __init__(self, log_text, index=None):
+    def __init__(self, log_text, index=None, verbose=0):
         try:
+            if verbose > 1:
+                print("Reading log entry (line {})".format(index))
             self.entry = int(log_text[:9].strip())
             timestamp_text = log_text[10:32].strip()
             if timestamp_text:
@@ -222,12 +226,14 @@ class LogFile:
                       'event_level',
                       'event']
 
-    def __init__(self, input_filepath):
+    def __init__(self, input_filepath, verbose=0):
         with open(input_filepath) as log_file:
             # Read header:
-            self.header = LogHeader(log_file)
+            self.header = LogHeader(log_file, verbose=verbose)
             # Read and process log entries:
-            self.entries = [LogEntry(line, index=index)
+            if verbose > 0:
+                print("Reading log entries")
+            self.entries = [LogEntry(line, index=index, verbose=verbose)
                             for index, line in enumerate(log_file.readlines())
                             if line and len(line) > 5]
 
@@ -259,7 +265,10 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--format", default='tsv',
-                        help="the output format desired: csv,tsv,json")
+                        choices=['csv', 'tsv', 'json'],
+                        help="the output format desired")
+    parser.add_argument("--verbose", "-v", action='count',
+                        help="show more processing details")
     parser.add_argument("logfile",
                         help="the parsed log file to process")
     parser.add_argument("--outfile",
@@ -271,7 +280,7 @@ if __name__ == "__main__":
         print("Log file does not exist: ", log_filepath)
         exit(1)
     print('Reading log: {}'.format(log_filepath))
-    log = LogFile(log_filepath)
+    log = LogFile(log_filepath, verbose=args.verbose)
 
     output_format = args.format
     line_sep = os.linesep
@@ -279,7 +288,7 @@ if __name__ == "__main__":
     if not output_filepath:
         output_filepath = os.path.splitext(log_filepath)[0] + '.' + output_format
 
-    print('Emitting output: {}'.format(output_filepath))
+    print('Emitting output to: {}'.format(output_filepath))
     with open(output_filepath, 'w') as output:
         log_headers = log.headers
         if output_format == 'csv':
