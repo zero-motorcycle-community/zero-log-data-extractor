@@ -1,59 +1,109 @@
 #!/usr/bin/env python3
 
+"""
+This extracts data from decoded/text logs for Zero Motorcycles.
+
+It supports CSV/TSV tabular formats as well as JSON.
+"""
+
 import os
 from datetime import datetime
 import re
 import json
-from typing import List
+from typing import List, Tuple, Dict, IO
 
 
 def print_value_tabular(value):
+    """Stringify the value for CSV/TSV; treat None as empty text."""
     if value is None:
         return ''
-    else:
-        return str(value)
+    return str(value)
 
 
 def value_from_header_line(header_line: str) -> str:
+    """Return the value indicated in the given header line.
+    Header lines have a multi-space separator between label and value."""
     return re.split(r"\s\s+", header_line.strip())[-1]
 
 
 class LogHeader:
-    def __init__(self, log_input_file, verbose=0):
+    """Parse and represent the metadata in a Zero Motorcycles log header."""
+    log_title: str
+    serial_no: str
+    log_entries_count: List[str]
+    divider_indexes: List[int]
+    column_labels: List[str]
+    # MBB-only
+    vin: str
+    board_rev: str
+    firmware_rev: str
+    model: str
+    # BMS-only
+    pack_serial_no: str
+    initial_date: str
+
+    def __init__(self, log_input_file: IO, verbose=0):
         if verbose > 0:
             print("Reading header")
         self.log_title = log_input_file.readline().strip()
         log_input_file.readline()
-        self.serial_no = value_from_header_line(log_input_file.readline())
-        self.vin = value_from_header_line(log_input_file.readline())
-        self.firmware_rev = value_from_header_line(log_input_file.readline())
-        self.board_rev = value_from_header_line(log_input_file.readline())
-        self.model = value_from_header_line(log_input_file.readline())
+        if self.log_source == 'MBB':
+            self.serial_no = value_from_header_line(log_input_file.readline())
+            self.vin = value_from_header_line(log_input_file.readline())
+            self.firmware_rev = value_from_header_line(log_input_file.readline())
+            self.board_rev = value_from_header_line(log_input_file.readline())
+            self.model = value_from_header_line(log_input_file.readline())
+        elif self.log_source == 'BMS':
+            self.initial_date = value_from_header_line(log_input_file.readline())
+            self.serial_no = value_from_header_line(log_input_file.readline())
+            self.pack_serial_no = value_from_header_line(log_input_file.readline())
         log_input_file.readline()
         self.log_entries_count = re.findall(r"\d+", log_input_file.readline())
         log_input_file.readline()
-        self.column_headings = log_input_file.readline()
-        self.column_divider = log_input_file.readline()
+        column_headings = log_input_file.readline()
+        column_divider = log_input_file.readline()
+        self.divider_indexes = [i for i, letter in enumerate(column_divider) if letter == '+']
+        self.column_labels = [hdg.strip() for hdg in re.split(r"\s\s+", column_headings)]
+
+    @property
+    def log_source(self):
+        """Identify whether a MBB or BMS log."""
+        if 'MBB' in self.log_title:
+            return 'MBB'
+        if 'BMS' in self.log_title:
+            return 'BMS'
+        return None
 
     def to_json(self):
-        return {
-            'title': self.log_title,
-            'serial_no': self.serial_no,
-            'vin': self.vin,
-            'firmware_rev': self.firmware_rev,
-            'board_rev': self.board_rev,
-            'model': self.model,
-            'num_entries': self.log_entries_count
-        }
+        """Convert to JSON-serializable data structure."""
+        if self.log_source == 'MBB':
+            return {
+                'title': self.log_title,
+                'serial_no': self.serial_no,
+                'vin': self.vin,
+                'firmware_rev': self.firmware_rev,
+                'board_rev': self.board_rev,
+                'model': self.model,
+                'num_entries': self.log_entries_count
+            }
+        if self.log_source == 'BMS':
+            return {
+                'title': self.log_title,
+                'serial_no': self.serial_no,
+                'pack_serial_no': self.pack_serial_no,
+                'initial_date': self.initial_date
+            }
+        return None
 
 
 class LogEntry:
+    """Parse and represent the metadata, message, and data in a Zero Motorcycles log entry."""
     entry: int
     event: str
     event_level: str
     event_type: str
     component: str
-    conditions: dict
+    conditions: Dict[str, str]
 
     def __init__(self, log_text, index=None, verbose=0):
         try:
@@ -67,21 +117,17 @@ class LogEntry:
                 except ValueError:
                     self.timestamp = ''
             message = log_text[33:].strip()
-            for k, v in self.decode_message(message).items():
-                setattr(self, k, v)
-        except Exception as e:
+            for key, value in self.decode_message(message).items():
+                setattr(self, key, value)
+        except ValueError:
             self.conditions = {}
             print("Decoding line #{} failed from content: {}".format(index, log_text))
 
     @classmethod
-    def decode_message(cls, message: str) -> dict:
-        event_type = ''
-        event_contents = message
+    def decode_level_from_message(cls, message: str) -> Tuple[str, str]:
+        """Extract and strip log level, return level and remainder"""
         event_level = ''
-        component = 'MBB'
-        conditions = {}
-
-        # Extract and strip log level:
+        event_contents = message
         if event_contents.startswith('INFO:'):
             event_level = 'INFO'
             event_contents = event_contents[6:].strip()
@@ -97,25 +143,41 @@ class LogEntry:
         elif event_contents.startswith('ERROR:'):
             event_level = 'ERROR'
             event_contents = event_contents[7:].strip()
+        return event_level, event_contents
 
-        # Check contents for event type:
-        if event_contents.startswith('0x'):
+    @classmethod
+    def decode_type_from_message(cls, message: str) -> str:
+        """Check contents for event type."""
+        event_type = ''
+        if message.startswith('0x'):
             event_type = 'UNKNOWN'
-            event_contents = ''
-        elif event_contents.startswith('Riding'):
+        if message.startswith('Riding'):
             event_type = 'RIDING'
-        elif event_contents.startswith('Charging'):
+        if message.startswith('Charging'):
             event_type = 'CHARGING'
-        elif event_contents.endswith(' Connected') or event_contents.endswith('Link Up'):
+        if message.endswith(' Connected') or message.endswith('Link Up'):
             event_type = 'CONNECTED'
-        elif event_contents.endswith(' Disconnected') or event_contents.endswith('Link Down'):
+        if message.endswith(' Disconnected') or message.endswith('Link Down'):
             event_type = 'DISCONNECTED'
-        elif event_contents.endswith(' On') or ' On ' in event_contents:
+        if message.endswith(' On') or ' On ' in message:
             event_type = 'ON'
-        elif event_contents.endswith(' Off') or ' Off ' in event_contents:
+        if message.endswith(' Off') or ' Off ' in message:
             event_type = 'OFF'
-        elif 'Limit' in event_contents:
+        if 'Limit' in message:
             event_type = 'LIMIT'
+        return event_type
+
+    @classmethod
+    def decode_message(cls, message: str) -> Dict[str, str]:
+        """Extract LogEntry properties from the log text after the timestamp."""
+        component = 'MBB'
+        conditions = {}
+
+        event_level, event_contents = cls.decode_level_from_message(message)
+
+        event_type = cls.decode_type_from_message(event_contents)
+        if event_type == 'UNKNOWN':
+            event_contents = ''
 
         # Check contents for components:
         if event_contents.startswith('Module ') or 'Battery' in event_contents:
@@ -159,9 +221,9 @@ class LogEntry:
 
     @classmethod
     def conditions_to_dict(cls, conditions: str) -> dict:
+        """Extract key-value data pairs in the message and conditions text."""
         result = {}
-        key_positions = [match for match in
-                         re.finditer(r",?\s*([A-Za-z]+\s*[A-Za-z]*):\s*", conditions)]
+        key_positions = list(re.finditer(r",?\s*([A-Za-z]+\s*[A-Za-z]*):\s*", conditions))
         for i, j in zip(key_positions[0::2], key_positions[1::2]):
             key = i.group(1)
             value = conditions[i.end(0):j.start(0)]
@@ -182,13 +244,15 @@ class LogEntry:
         result[key] = value
         return result
 
-    def is_notice(self):
-        return self.event_type in ['INFO', 'DEBUG', 'WARNING', 'ERROR']
+    def has_log_level(self):
+        """Return whether the event has a log level."""
+        return self.event_level in ['INFO', 'DEBUG', 'WARNING', 'ERROR']
 
     def print_property_tabular(self, key):
+        """For tabular output, print a built-in property or condition value."""
         if hasattr(self, key):
             return print_value_tabular(getattr(self, key))
-        elif key in self.conditions:
+        if key in self.conditions:
             value = self.conditions[key]
             if re.match(r"^\d*\.?\d+[VAC]$", value):
                 return value[:-1]
@@ -198,12 +262,15 @@ class LogEntry:
         return ''
 
     def to_csv(self, headers, sep=','):
+        """Produce a tabular output line."""
         return sep.join([self.print_property_tabular(key) for key in headers])
 
     def to_tsv(self, headers):
+        """Produce a tabular output line with tab separator."""
         return self.to_csv(headers, sep='\t')
 
     def to_json(self):
+        """Convert to JSON-serializable data structure."""
         return {
             'entry': self.entry,
             'timestamp': self.timestamp and str(self.timestamp) or '',
@@ -216,8 +283,10 @@ class LogEntry:
 
 
 class LogFile:
+    """Parse and represent an entire log file."""
     header: LogHeader
     entries: List[LogEntry]
+    tabular_header_labels: List[str]
 
     common_headers = ['entry',
                       'timestamp',
@@ -226,8 +295,13 @@ class LogFile:
                       'event_level',
                       'event']
 
-    def __init__(self, input_filepath, verbose=0):
-        with open(input_filepath) as log_file:
+    def __init__(self, input_filepath: str, verbose=0):
+        self.input_filepath = input_filepath
+        self.init_from_input_file(verbose=verbose)
+
+    def init_from_input_file(self, verbose=0):
+        """Parse the input file into state."""
+        with open(self.input_filepath) as log_file:
             # Read header:
             self.header = LogHeader(log_file, verbose=verbose)
             # Read and process log entries:
@@ -236,12 +310,11 @@ class LogFile:
             self.entries = [LogEntry(line, index=index, verbose=verbose)
                             for index, line in enumerate(log_file.readlines())
                             if line and len(line) > 5]
-
-    def decorate_entries_with_riding_charging_phases(self):
-        pass
+        self.tabular_header_labels = self.common_headers + self.all_conditions_keys
 
     @property
     def all_conditions_keys(self):
+        """Return data labels used across all log entries for tabular output."""
         conditions_keys = []
         for entry in self.entries:
             for k in entry.conditions.keys():
@@ -249,55 +322,61 @@ class LogFile:
                     conditions_keys.append(k)
         return conditions_keys
 
-    @property
-    def headers(self):
-        return self.common_headers + self.all_conditions_keys
-
     def to_json(self):
+        """Convert to JSON-serializable data structure."""
         return {
             'header': self.header.to_json(),
             'entries': [entry_data.to_json() for entry_data in self.entries]
         }
 
+    def output_to_file(self, output_filepath, output_format, line_sep=os.linesep):
+        """Emit output to the filepath in the given format."""
+        log_headers = self.tabular_header_labels
+        with open(output_filepath, 'w') as output:
+            if output_format == 'csv':
+                output.write(','.join(log_headers) + line_sep)  # Write header
+                for log_entry in self.entries:  # Write entries:
+                    output.write(log_entry.to_csv(log_headers) + line_sep)
+            elif output_format == 'tsv':
+                output.write('\t'.join(log_headers) + line_sep)  # Write header
+                for log_entry in self.entries:  # Write entries:
+                    output.write(log_entry.to_tsv(log_headers) + line_sep)
+            elif output_format == 'json':
+                output.write(json.dumps(self.to_json(), indent=2))
+
 
 if __name__ == "__main__":
+    import sys
     import argparse
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--format", default='tsv',
-                        choices=['csv', 'tsv', 'json'],
-                        help="the output format desired")
-    parser.add_argument("--verbose", "-v", action='count',
-                        help="show more processing details")
-    parser.add_argument("logfile",
-                        help="the parsed log file to process")
-    parser.add_argument("--outfile",
-                        help="the name of output file to emit")
+    ARGS_PARSER = argparse.ArgumentParser()
+    ARGS_PARSER.add_argument("--format", default='tsv',
+                             choices=['csv', 'tsv', 'json'],
+                             help="the output format desired")
+    ARGS_PARSER.add_argument("--verbose", "-v",
+                             action='count', default=0,
+                             help="show more processing details")
+    ARGS_PARSER.add_argument("--omit-units",
+                             action='store_true',
+                             help="omit units from the data values")
+    ARGS_PARSER.add_argument("logfile",
+                             help="the parsed log file to process")
+    ARGS_PARSER.add_argument("--outfile",
+                             help="the name of output file to emit")
 
-    args = parser.parse_args()
-    log_filepath = args.logfile
-    if not os.path.exists(log_filepath):
-        print("Log file does not exist: ", log_filepath)
-        exit(1)
-    print('Reading log: {}'.format(log_filepath))
-    log = LogFile(log_filepath, verbose=args.verbose)
+    CLI_ARGS = ARGS_PARSER.parse_args()
+    LOG_FILEPATH = CLI_ARGS.logfile
+    if not os.path.exists(LOG_FILEPATH):
+        print("Log file does not exist: ", LOG_FILEPATH)
+        sys.exit(1)
+    print('Reading log: {}'.format(LOG_FILEPATH))
+    LOG_FILE = LogFile(LOG_FILEPATH, verbose=CLI_ARGS.verbose)
 
-    output_format = args.format
-    line_sep = os.linesep
-    output_filepath = args.outfile
-    if not output_filepath:
-        output_filepath = os.path.splitext(log_filepath)[0] + '.' + output_format
+    OUTPUT_FORMAT = CLI_ARGS.format
+    OUTPUT_FILEPATH = CLI_ARGS.outfile
+    if not OUTPUT_FILEPATH:
+        OUTPUT_FILEPATH = os.path.splitext(LOG_FILEPATH)[0] + '.' + OUTPUT_FORMAT
 
-    print('Emitting output to: {}'.format(output_filepath))
-    with open(output_filepath, 'w') as output:
-        log_headers = log.headers
-        if output_format == 'csv':
-            output.write(','.join(log_headers) + line_sep)  # Write header
-            for log_entry in log.entries:  # Write entries:
-                output.write(log_entry.to_csv(log_headers) + line_sep)
-        elif output_format == 'tsv':
-            output.write('\t'.join(log_headers) + line_sep)  # Write header
-            for log_entry in log.entries:  # Write entries:
-                output.write(log_entry.to_tsv(log_headers) + line_sep)
-        elif output_format == 'json':
-            output.write(json.dumps(log.to_json(), indent=2))
+    OMIT_UNITS = CLI_ARGS.omit_units
+    print('Emitting output to: {}'.format(OUTPUT_FILEPATH))
+    LOG_FILE.output_to_file(OUTPUT_FILEPATH, OUTPUT_FORMAT)
