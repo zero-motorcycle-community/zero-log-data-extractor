@@ -10,6 +10,31 @@ class TestLogEntry(TestCase):
         self.assertIsInstance(log_entry.component, str)
         self.assertIsInstance(log_entry.conditions, dict)
 
+    def test_conditions_to_dict(self):
+        conditions = LogEntry.conditions_to_dict(
+            '''PackTemp: h 21C, l 20C, PackSOC: 91%, Vpack:113.044V, MotAmps:   0, BattAmps:   2,\
+             Mods: 11,  MotTemp:  26C, CtrlTemp:  19C, AmbTemp:  20C, MotRPM:   0, Odo:48809km'''
+        )
+        self.assertDictEqual({'AmbTemp': '20C',
+                              'BattAmps': '2',
+                              'CtrlTemp': '19C',
+                              'Mods': '11',
+                              'MotAmps': '0',
+                              'MotRPM': '0',
+                              'MotTemp': '26C',
+                              'Odo': '48809km',
+                              'PackSOC': '91%',
+                              'PackTemp (h)': '21C',
+                              'PackTemp (l)': '20C',
+                              'Vpack': '113.044V'}, conditions)
+        conditions = LogEntry.conditions_to_dict(
+            '''Bmvolts: 92062, Cmvolts: 118937, Amps: 0, RPM: 0''')
+        self.assertDictEqual({'Bmvolts': '92062',
+                              'Cmvolts': '118937',
+                              'Amps': '0',
+                              'RPM': '0'},
+                             conditions)
+
     def test_disarmed(self):
         log_entry = LogEntry('''
  00001     05/21/2018 21:12:20   Disarmed                   \
@@ -23,8 +48,13 @@ class TestLogEntry(TestCase):
         self.assertEqual('Disarmed', log_entry.event)
         self.assertDictEqual({'AmbTemp': '20C',
                               'BattAmps': '2',
+                              'CtrlTemp': '19C',
+                              'Mods': '11',
+                              'MotAmps': '0',
+                              'MotRPM': '0',
                               'MotTemp': '26C',
                               'Odo': '48809km',
+                              'PackSOC': '91%',
                               'PackTemp (h)': '21C',
                               'PackTemp (l)': '20C',
                               'Vpack': '113.044V'},
@@ -40,7 +70,7 @@ class TestLogEntry(TestCase):
         self.assertEqual('INFO', log_entry.event_level)
         self.assertEqual('', log_entry.event)
         self.assertDictEqual({'Bmvolts': '92062',
-                              # FIXME 'Cmvolts': '118937',
+                              'Cmvolts': '118937',
                               'Amps': '0',
                               'RPM': '0'},
                              log_entry.conditions)
