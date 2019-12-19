@@ -38,7 +38,7 @@ class LogHeader:
     """Parse and represent the metadata in a Zero Motorcycles log header."""
     log_title: str
     serial_no: str
-    log_entries_count: List[str]
+    log_entries_count: List[int]
     divider_indexes: List[int]
     column_labels: List[str]
     mbb_metadata: MBBHeaderMetadata
@@ -68,7 +68,8 @@ class LogHeader:
                 pack_serial_no=pack_serial_no,
                 initial_date=initial_date)
         log_input_file.readline()
-        self.log_entries_count = re.findall(r"\d+", log_input_file.readline())
+        self.log_entries_count = [int(count)
+                                  for count in re.findall(r"\d+", log_input_file.readline())]
         log_input_file.readline()
         column_headings = log_input_file.readline()
         column_divider = log_input_file.readline()
