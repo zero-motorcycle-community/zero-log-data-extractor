@@ -71,3 +71,433 @@ entry,timestamp,component,event_type,event_level,event,vmod,maxsys,minsys,diff,v
 32,2018-05-13 11:15:15,MBB,,,Disarmed,,,,,,,45,45,80%,114.333,0,0,01,29,20,22,0,46213km,,,,,,,,,,,,,,,,,,
 33,2018-05-13 11:15:15,Battery,,DEBUG,Module scheme changed from Stopped mode to Running mode,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 ```
+
+And in JSON:
+```json
+{
+  "header": {
+    "source": "MBB",
+    "title": "\ufeffZero MBB log",
+    "serial_no": "2015_mbb_48e0f7_00720",
+    "vin": "538SD9Z37GCGxxxxx",
+    "firmware_rev": "51",
+    "board_rev": "3",
+    "model": "DSR",
+    "num_entries": []
+  },
+  "entries": [
+    {
+      "entry": 1,
+      "timestamp": "2018-05-13 10:06:43",
+      "component": "Controller",
+      "event_type": "",
+      "event_level": "DEBUG",
+      "event": "Sevcon Contactor Drive ON.",
+      "conditions": {}
+    },
+    {
+      "entry": 2,
+      "timestamp": "2018-05-13 10:06:43",
+      "component": "Battery",
+      "event_type": "",
+      "event_level": "",
+      "event": "Module 00 Closing Contactor",
+      "conditions": {
+        "vmod": "93.175V",
+        "maxsys": "93.197V",
+        "minsys": "93.197V",
+        "diff": "0.000V",
+        "vcap": "86.750V",
+        "prechg": "93%"
+      }
+    },
+    {
+      "entry": 3,
+      "timestamp": "2018-05-13 10:06:43",
+      "component": "Battery",
+      "event_type": "",
+      "event_level": "",
+      "event": "Module 00 Closing Contactor",
+      "conditions": {
+        "vmod": "93.175V",
+        "maxsys": "93.197V",
+        "minsys": "93.197V",
+        "diff": "0.000V",
+        "vcap": "86.750V",
+        "prechg": "93%"
+      }
+    },
+    {
+      "entry": 4,
+      "timestamp": "2018-05-13 10:06:43",
+      "component": "Battery",
+      "event_type": "",
+      "event_level": "DEBUG",
+      "event": "Module 00 Contactor is now Closed",
+      "conditions": {}
+    },
+    {
+      "entry": 5,
+      "timestamp": "2018-05-13 10:06:43",
+      "component": "External Charger",
+      "event_type": "",
+      "event_level": "INFO",
+      "event": "Enabling External Chg 0 Charger 2",
+      "conditions": {}
+    },
+    {
+      "entry": 6,
+      "timestamp": "2018-05-13 10:10:25",
+      "component": "External Charger",
+      "event_type": "DISCONNECTED",
+      "event_level": "",
+      "event": "External Chg 0 Charger 2 Disconnected",
+      "conditions": {}
+    },
+    {
+      "entry": 7,
+      "timestamp": "2018-05-13 10:10:25",
+      "component": "Battery",
+      "event_type": "",
+      "event_level": "DEBUG",
+      "event": "Module scheme changed from Charging mode to Stopped mode",
+      "conditions": {}
+    },
+    {
+      "entry": 8,
+      "timestamp": "2018-05-13 10:10:25",
+      "component": "Battery",
+      "event_type": "",
+      "event_level": "DEBUG",
+      "event": "Module mode Change Does Not Require Disconnect",
+      "conditions": {}
+    },
+    {
+      "entry": 9,
+      "timestamp": "2018-05-13 10:10:32",
+      "component": "Battery",
+      "event_type": "",
+      "event_level": "DEBUG",
+      "event": "Module scheme changed from Stopped mode to Running mode",
+      "conditions": {}
+    },
+    {
+      "entry": 10,
+      "timestamp": "2018-05-13 10:10:32",
+      "component": "Battery",
+      "event_type": "",
+      "event_level": "DEBUG",
+      "event": "Module mode Change Does Not Require Disconnect",
+      "conditions": {}
+    },
+    {
+      "entry": 11,
+      "timestamp": "2018-05-13 10:10:35",
+      "component": "MBB",
+      "event_type": "RIDING",
+      "event_level": "",
+      "event": "Riding",
+      "conditions": {
+        "PackTemp (h)": "37C",
+        "PackTemp (l)": "36C",
+        "PackSOC": "9%",
+        "Vpack": "93.271V",
+        "MotAmps": "108",
+        "BattAmps": "1",
+        "Mods": "10",
+        "MotTemp": "43C",
+        "CtrlTemp": "23C",
+        "AmbTemp": "18C",
+        "MotRPM": "0",
+        "Odo": "46213km"
+      }
+    },
+    {
+      "entry": 12,
+      "timestamp": "2018-05-13 10:10:35",
+      "component": "MBB",
+      "event_type": "LIMIT",
+      "event_level": "",
+      "event": "Batt Dischg Cur Limited",
+      "conditions": {
+        "MinCell": "3280mV",
+        "MaxPackTemp": "37C",
+        "BattAmps": "105",
+        "PackSOC": "15.217391304347826%"
+      }
+    },
+    {
+      "entry": 13,
+      "timestamp": "2018-05-13 10:10:42",
+      "component": "Battery",
+      "event_type": "",
+      "event_level": "DEBUG",
+      "event": "Module scheme changed from Running mode to Stopped mode",
+      "conditions": {}
+    },
+    {
+      "entry": 14,
+      "timestamp": "2018-05-13 10:10:42",
+      "component": "Battery",
+      "event_type": "",
+      "event_level": "DEBUG",
+      "event": "Module mode Change Does Not Require Disconnect",
+      "conditions": {}
+    },
+    {
+      "entry": 15,
+      "timestamp": "2018-05-13 10:11:04",
+      "component": "External Charger",
+      "event_type": "CONNECTED",
+      "event_level": "",
+      "event": "External Chg 0 Charger 2 Connected",
+      "conditions": {}
+    },
+    {
+      "entry": 16,
+      "timestamp": "2018-05-13 10:11:04",
+      "component": "Battery",
+      "event_type": "",
+      "event_level": "DEBUG",
+      "event": "Module scheme changed from Stopped mode to Charging mode",
+      "conditions": {}
+    },
+    {
+      "entry": 17,
+      "timestamp": "2018-05-13 10:11:04",
+      "component": "Battery",
+      "event_type": "",
+      "event_level": "DEBUG",
+      "event": "Module mode Change Does Not Require Disconnect",
+      "conditions": {}
+    },
+    {
+      "entry": 18,
+      "timestamp": "2018-05-13 10:11:04",
+      "component": "External Charger",
+      "event_type": "",
+      "event_level": "INFO",
+      "event": "Disabling External Chg 0 Charger 2",
+      "conditions": {}
+    },
+    {
+      "entry": 19,
+      "timestamp": "2018-05-13 10:11:05",
+      "component": "External Charger",
+      "event_type": "",
+      "event_level": "INFO",
+      "event": "Enabling External Chg 0 Charger 2",
+      "conditions": {}
+    },
+    {
+      "entry": 20,
+      "timestamp": "2018-05-13 10:11:15",
+      "component": "MBB",
+      "event_type": "CHARGING",
+      "event_level": "",
+      "event": "Charging",
+      "conditions": {
+        "PackTemp (h)": "37C",
+        "PackTemp (l)": "36C",
+        "AmbTemp": "18C",
+        "PackSOC": "9%",
+        "Vpack": "94.750V",
+        "BattAmps": "-63",
+        "Mods": "01",
+        "MbbChgEn": "Yes",
+        "BmsChgEn": "No"
+      }
+    },
+    {
+      "entry": 21,
+      "timestamp": "2018-05-13 10:11:55",
+      "component": "MBB",
+      "event_type": "OFF",
+      "event_level": "",
+      "event": "Key Off",
+      "conditions": {}
+    },
+    {
+      "entry": 22,
+      "timestamp": "2018-05-13 10:21:15",
+      "component": "MBB",
+      "event_type": "CHARGING",
+      "event_level": "",
+      "event": "Charging",
+      "conditions": {
+        "PackTemp (h)": "37C",
+        "PackTemp (l)": "36C",
+        "AmbTemp": "19C",
+        "PackSOC": "21%",
+        "Vpack": "101.313V",
+        "BattAmps": "-86",
+        "Mods": "01",
+        "MbbChgEn": "Yes",
+        "BmsChgEn": "No"
+      }
+    },
+    {
+      "entry": 23,
+      "timestamp": "2018-05-13 10:31:15",
+      "component": "MBB",
+      "event_type": "CHARGING",
+      "event_level": "",
+      "event": "Charging",
+      "conditions": {
+        "PackTemp (h)": "38C",
+        "PackTemp (l)": "37C",
+        "AmbTemp": "20C",
+        "PackSOC": "32%",
+        "Vpack": "103.378V",
+        "BattAmps": "-86",
+        "Mods": "01",
+        "MbbChgEn": "Yes",
+        "BmsChgEn": "No"
+      }
+    },
+    {
+      "entry": 24,
+      "timestamp": "2018-05-13 10:41:15",
+      "component": "MBB",
+      "event_type": "CHARGING",
+      "event_level": "",
+      "event": "Charging",
+      "conditions": {
+        "PackTemp (h)": "39C",
+        "PackTemp (l)": "38C",
+        "AmbTemp": "20C",
+        "PackSOC": "44%",
+        "Vpack": "104.692V",
+        "BattAmps": "-83",
+        "Mods": "01",
+        "MbbChgEn": "Yes",
+        "BmsChgEn": "No"
+      }
+    },
+    {
+      "entry": 25,
+      "timestamp": "2018-05-13 10:51:15",
+      "component": "MBB",
+      "event_type": "CHARGING",
+      "event_level": "",
+      "event": "Charging",
+      "conditions": {
+        "PackTemp (h)": "42C",
+        "PackTemp (l)": "40C",
+        "AmbTemp": "21C",
+        "PackSOC": "55%",
+        "Vpack": "107.101V",
+        "BattAmps": "-82",
+        "Mods": "01",
+        "MbbChgEn": "Yes",
+        "BmsChgEn": "No"
+      }
+    },
+    {
+      "entry": 26,
+      "timestamp": "2018-05-13 11:01:15",
+      "component": "MBB",
+      "event_type": "CHARGING",
+      "event_level": "",
+      "event": "Charging",
+      "conditions": {
+        "PackTemp (h)": "44C",
+        "PackTemp (l)": "43C",
+        "AmbTemp": "22C",
+        "PackSOC": "66%",
+        "Vpack": "110.499V",
+        "BattAmps": "-78",
+        "Mods": "01",
+        "MbbChgEn": "Yes",
+        "BmsChgEn": "No"
+      }
+    },
+    {
+      "entry": 27,
+      "timestamp": "2018-05-13 11:09:02",
+      "component": "MBB",
+      "event_type": "ON",
+      "event_level": "",
+      "event": "Key On",
+      "conditions": {}
+    },
+    {
+      "entry": 28,
+      "timestamp": "2018-05-13 11:11:15",
+      "component": "MBB",
+      "event_type": "CHARGING",
+      "event_level": "",
+      "event": "Charging",
+      "conditions": {
+        "PackTemp (h)": "45C",
+        "PackTemp (l)": "45C",
+        "AmbTemp": "22C",
+        "PackSOC": "77%",
+        "Vpack": "114.291V",
+        "BattAmps": "-75",
+        "Mods": "01",
+        "MbbChgEn": "Yes",
+        "BmsChgEn": "No"
+      }
+    },
+    {
+      "entry": 29,
+      "timestamp": "2018-05-13 11:15:05",
+      "component": "External Charger",
+      "event_type": "DISCONNECTED",
+      "event_level": "",
+      "event": "External Chg 0 Charger 2 Disconnected",
+      "conditions": {}
+    },
+    {
+      "entry": 30,
+      "timestamp": "2018-05-13 11:15:05",
+      "component": "Battery",
+      "event_type": "",
+      "event_level": "DEBUG",
+      "event": "Module scheme changed from Charging mode to Stopped mode",
+      "conditions": {}
+    },
+    {
+      "entry": 31,
+      "timestamp": "2018-05-13 11:15:05",
+      "component": "Battery",
+      "event_type": "",
+      "event_level": "DEBUG",
+      "event": "Module mode Change Does Not Require Disconnect",
+      "conditions": {}
+    },
+    {
+      "entry": 32,
+      "timestamp": "2018-05-13 11:15:15",
+      "component": "MBB",
+      "event_type": "",
+      "event_level": "",
+      "event": "Disarmed",
+      "conditions": {
+        "PackTemp (h)": "45C",
+        "PackTemp (l)": "45C",
+        "PackSOC": "80%",
+        "Vpack": "114.333V",
+        "MotAmps": "0",
+        "BattAmps": "0",
+        "Mods": "01",
+        "MotTemp": "29C",
+        "CtrlTemp": "20C",
+        "AmbTemp": "22C",
+        "MotRPM": "0",
+        "Odo": "46213km"
+      }
+    },
+    {
+      "entry": 33,
+      "timestamp": "2018-05-13 11:15:15",
+      "component": "Battery",
+      "event_type": "",
+      "event_level": "DEBUG",
+      "event": "Module scheme changed from Stopped mode to Running mode",
+      "conditions": {}
+    }
+  ]
+}
+```
