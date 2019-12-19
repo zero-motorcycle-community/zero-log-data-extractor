@@ -7,6 +7,7 @@ It supports CSV/TSV tabular formats as well as JSON.
 """
 
 import os
+from collections import namedtuple
 from datetime import datetime
 import re
 import json
@@ -26,6 +27,13 @@ def value_from_header_line(header_line: str) -> str:
     return re.split(r"\s\s+", header_line.strip())[-1]
 
 
+MBBHeaderMetadata = namedtuple('MBBHeaderMetadata',
+                               ['vin', 'firmware_rev', 'board_rev', 'model'])
+
+BMSHeaderMetadata = namedtuple('BMSHeaderMetadata',
+                               ['pack_serial_no', 'initial_date'])
+
+
 class LogHeader:
     """Parse and represent the metadata in a Zero Motorcycles log header."""
     log_title: str
@@ -33,14 +41,8 @@ class LogHeader:
     log_entries_count: List[str]
     divider_indexes: List[int]
     column_labels: List[str]
-    # MBB-only
-    vin: str
-    board_rev: str
-    firmware_rev: str
-    model: str
-    # BMS-only
-    pack_serial_no: str
-    initial_date: str
+    mbb_metadata: MBBHeaderMetadata
+    bms_metadata: BMSHeaderMetadata
 
     def __init__(self, log_input_file: IO, verbose=0):
         if verbose > 0:
@@ -49,14 +51,22 @@ class LogHeader:
         log_input_file.readline()
         if self.log_source == 'MBB':
             self.serial_no = value_from_header_line(log_input_file.readline())
-            self.vin = value_from_header_line(log_input_file.readline())
-            self.firmware_rev = value_from_header_line(log_input_file.readline())
-            self.board_rev = value_from_header_line(log_input_file.readline())
-            self.model = value_from_header_line(log_input_file.readline())
+            vin = value_from_header_line(log_input_file.readline())
+            firmware_rev = value_from_header_line(log_input_file.readline())
+            board_rev = value_from_header_line(log_input_file.readline())
+            model = value_from_header_line(log_input_file.readline())
+            self.mbb_metadata = MBBHeaderMetadata(
+                vin=vin,
+                firmware_rev=firmware_rev,
+                board_rev=board_rev,
+                model=model)
         elif self.log_source == 'BMS':
-            self.initial_date = value_from_header_line(log_input_file.readline())
+            initial_date = value_from_header_line(log_input_file.readline())
             self.serial_no = value_from_header_line(log_input_file.readline())
-            self.pack_serial_no = value_from_header_line(log_input_file.readline())
+            pack_serial_no = value_from_header_line(log_input_file.readline())
+            self.bms_metadata = BMSHeaderMetadata(
+                pack_serial_no=pack_serial_no,
+                initial_date=initial_date)
         log_input_file.readline()
         self.log_entries_count = re.findall(r"\d+", log_input_file.readline())
         log_input_file.readline()
@@ -80,18 +90,18 @@ class LogHeader:
             return {
                 'title': self.log_title,
                 'serial_no': self.serial_no,
-                'vin': self.vin,
-                'firmware_rev': self.firmware_rev,
-                'board_rev': self.board_rev,
-                'model': self.model,
+                'vin': self.mbb_metadata.vin,
+                'firmware_rev': self.mbb_metadata.firmware_rev,
+                'board_rev': self.mbb_metadata.board_rev,
+                'model': self.mbb_metadata.model,
                 'num_entries': self.log_entries_count
             }
         if self.log_source == 'BMS':
             return {
                 'title': self.log_title,
                 'serial_no': self.serial_no,
-                'pack_serial_no': self.pack_serial_no,
-                'initial_date': self.initial_date
+                'pack_serial_no': self.bms_metadata.pack_serial_no,
+                'initial_date': self.bms_metadata.initial_date
             }
         return None
 
