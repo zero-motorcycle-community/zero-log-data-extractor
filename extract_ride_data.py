@@ -11,7 +11,7 @@ from collections import namedtuple
 from datetime import datetime
 import re
 import json
-from typing import List, Tuple, Dict, IO
+from typing import List, Tuple, Dict, IO, Optional, Union
 
 
 def print_value_tabular(value):
@@ -21,23 +21,16 @@ def print_value_tabular(value):
     return str(value)
 
 
-def value_from_header_line(header_line: str) -> str:
-    """Return the value indicated in the given header line.
-    Header lines have a multi-space separator between label and value."""
-    return re.split(r"\s\s+", header_line.strip())[-1]
-
-
 MBBHeaderMetadata = namedtuple('MBBHeaderMetadata',
-                               ['vin', 'firmware_rev', 'board_rev', 'model'])
+                               ['serial_no', 'vin', 'firmware_rev', 'board_rev', 'model'])
 
 BMSHeaderMetadata = namedtuple('BMSHeaderMetadata',
-                               ['pack_serial_no', 'initial_date'])
+                               ['serial_no', 'pack_serial_no', 'initial_date'])
 
 
 class LogHeader:
     """Parse and represent the metadata in a Zero Motorcycles log header."""
     log_title: str
-    serial_no: str
     log_entries_count: List[int]
     divider_indexes: List[int]
     column_labels: List[str]
@@ -47,34 +40,56 @@ class LogHeader:
     def __init__(self, log_input_file: IO, verbose=0):
         if verbose > 0:
             print("Reading header")
-        self.log_title = log_input_file.readline().strip()
-        log_input_file.readline()
+        header_lines = self.read_header_lines(log_input_file)
+        self.log_title = header_lines[0].strip()
         if self.log_source == 'MBB':
-            self.serial_no = value_from_header_line(log_input_file.readline())
-            vin = value_from_header_line(log_input_file.readline())
-            firmware_rev = value_from_header_line(log_input_file.readline())
-            board_rev = value_from_header_line(log_input_file.readline())
-            model = value_from_header_line(log_input_file.readline())
+            serial_no = self.value_from_lines(header_lines, prefix='Serial number')
+            vin = self.value_from_lines(header_lines, prefix='VIN')
+            firmware_rev = self.value_from_lines(header_lines, prefix='Firmware rev.')
+            board_rev = self.value_from_lines(header_lines, prefix='Board rev.')
+            model = self.value_from_lines(header_lines, prefix='Model')
             self.mbb_metadata = MBBHeaderMetadata(
+                serial_no=serial_no,
                 vin=vin,
                 firmware_rev=firmware_rev,
                 board_rev=board_rev,
                 model=model)
         elif self.log_source == 'BMS':
-            initial_date = value_from_header_line(log_input_file.readline())
-            self.serial_no = value_from_header_line(log_input_file.readline())
-            pack_serial_no = value_from_header_line(log_input_file.readline())
+            initial_date = self.value_from_lines(header_lines, prefix='Initial date')
+            serial_no = self.value_from_lines(header_lines, prefix='BMS serial number')
+            pack_serial_no = self.value_from_lines(header_lines, prefix='Pack serial number')
             self.bms_metadata = BMSHeaderMetadata(
+                serial_no=serial_no,
                 pack_serial_no=pack_serial_no,
-                initial_date=initial_date)
-        log_input_file.readline()
+                initial_date=datetime.strptime(initial_date, '%b %d %Y %H:%M:%S') or initial_date)
         self.log_entries_count = [int(count)
-                                  for count in re.findall(r"\d+", log_input_file.readline())]
-        log_input_file.readline()
-        column_headings = log_input_file.readline()
-        column_divider = log_input_file.readline()
-        self.divider_indexes = [i for i, letter in enumerate(column_divider) if letter == '+']
-        self.column_labels = [hdg.strip() for hdg in re.split(r"\s\s+", column_headings)]
+                                  for count in re.findall(r"\d+", header_lines[-3])]
+        self.divider_indexes = [i for i, letter in enumerate(header_lines[-1]) if letter == '+']
+        self.column_labels = [hdg.strip() for hdg in re.split(r"\s\s+", header_lines[-2])]
+
+    @classmethod
+    def read_header_lines(cls, log_input_file: IO):
+        """Read the header lines in for parsing/initialization."""
+        header_lines = [log_input_file.readline()]
+        while not header_lines[-1].startswith('+-----'):
+            header_lines.append(log_input_file.readline().strip())
+        return header_lines
+
+    @classmethod
+    def value_from_line(cls, header_line: str, prefix=None) -> str:
+        """Return the value indicated in the given header line.
+        Header lines have a multi-space separator between label and value."""
+        if prefix:
+            return header_line[len(prefix):].strip()
+        return re.split(r"\s\s+", header_line.strip())[-1]
+
+    @classmethod
+    def value_from_lines(cls, header_lines: List[str], prefix: str) -> Optional[str]:
+        """Find the header line with the prefix, and return the labeled value"""
+        for header_line in header_lines:
+            if header_line.startswith(prefix):
+                return cls.value_from_line(header_line, prefix=prefix)
+        return None
 
     @property
     def log_source(self):
@@ -89,8 +104,9 @@ class LogHeader:
         """Convert to JSON-serializable data structure."""
         if self.log_source == 'MBB':
             return {
+                'source': self.log_source,
                 'title': self.log_title,
-                'serial_no': self.serial_no,
+                'serial_no': self.mbb_metadata.serial_no,
                 'vin': self.mbb_metadata.vin,
                 'firmware_rev': self.mbb_metadata.firmware_rev,
                 'board_rev': self.mbb_metadata.board_rev,
@@ -99,22 +115,24 @@ class LogHeader:
             }
         if self.log_source == 'BMS':
             return {
+                'source': self.log_source,
                 'title': self.log_title,
-                'serial_no': self.serial_no,
+                'serial_no': self.bms_metadata.serial_no,
                 'pack_serial_no': self.bms_metadata.pack_serial_no,
-                'initial_date': self.bms_metadata.initial_date
+                'initial_date': str(self.bms_metadata.initial_date)
             }
         return None
 
 
 class LogEntry:
     """Parse and represent the metadata, message, and data in a Zero Motorcycles log entry."""
-    entry: int
-    event: str
-    event_level: str
-    event_type: str
-    component: str
-    conditions: Dict[str, str]
+    entry: int = 0
+    timestamp: Union[str, datetime] = ''
+    event: str = ''
+    event_level: str = ''
+    event_type: str = ''
+    component: str = ''
+    conditions: Dict[str, str] = {}
 
     def __init__(self, log_text, index=None, verbose=0):
         try:
@@ -131,7 +149,6 @@ class LogEntry:
             for key, value in self.decode_message(message).items():
                 setattr(self, key, value)
         except ValueError:
-            self.conditions = {}
             print("Decoding line #{} failed from content: {}".format(index, log_text))
 
     @classmethod
@@ -283,7 +300,7 @@ class LogEntry:
     def to_json(self):
         """Convert to JSON-serializable data structure."""
         return {
-            'entry': self.entry,
+            'entry': self.entry or None,
             'timestamp': self.timestamp and str(self.timestamp) or '',
             'component': self.component,
             'event_type': self.event_type,
@@ -296,8 +313,8 @@ class LogEntry:
 class LogFile:
     """Parse and represent an entire log file."""
     header: LogHeader
-    entries: List[LogEntry]
-    tabular_header_labels: List[str]
+    entries: List[LogEntry] = []
+    tabular_header_labels: List[str] = []
 
     common_headers = ['entry',
                       'timestamp',
