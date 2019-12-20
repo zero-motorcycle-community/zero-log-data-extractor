@@ -108,6 +108,27 @@ class TestLogEntry(TestCase):
         self.assertEqual(7758, log_entry.entry)
         self.assertEqual('ERROR', log_entry.event_level)
         self.assertEqual('Battery', log_entry.component)
-        self.assertEqual('Module 01 maximum connection retries reached. Flagging ineligble.',
+        self.assertEqual('Module maximum connection retries reached. Flagging ineligble.',
                          log_entry.event)
-        self.assertDictEqual({}, log_entry.conditions)
+        self.assertDictEqual({'Module': '01'}, log_entry.conditions)
+
+    def test_module_not_connected(self):
+        log_entry = LogEntry('''
+ 01525     05/14/2018 16:49:14   Module 1 not connected, PV 109511mV, diff 0mV, Allowed diff 750mV,\
+ pack cap 26Ah, batt curr 0A, PackTemp h 23C, l 23C, last CAN msg 4ms ago, lcell 3903mV,\
+ Max charge 10cx10, max discharge 100cx10
+''')
+        self.assertLogEntryIsConsistent(log_entry)
+        self.assertEqual(1525, log_entry.entry)
+        self.assertEqual({'Module': '1',
+                          'PV': '109511mV',
+                          'diff': '0mV',
+                          'Allowed diff': '750mV',
+                          'pack cap': '26Ah',
+                          'batt curr': '0A',
+                          'PackTemp h': '23C',
+                          'l': '23C',
+                          'lcell': '3903mV',
+                          'Max charge': '10cx10',
+                          'max discharge': '100cx10'},
+                         log_entry.conditions)

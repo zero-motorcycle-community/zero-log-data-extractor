@@ -227,19 +227,36 @@ class LogEntry:
 
         # Identify special conditions in the event contents:
         curr_limited_message = 'Batt Dischg Cur Limited'
+        low_chassis_isolation_message = 'Low Chassis Isolation'
         if event_contents.startswith(curr_limited_message):
             matches = re.search(r"(\d+) A \((\d+\.?\d+%)\)", event_contents)
             if matches:
                 conditions['BattAmps'] = matches.group(1)
                 conditions['PackSOC'] = matches.group(2)
                 event_contents = curr_limited_message
-        low_chassis_isolation_message = 'Low Chassis Isolation'
-        if event_contents.startswith(low_chassis_isolation_message):
+        elif event_contents.startswith(low_chassis_isolation_message):
             matches = re.search(r"(\d+ KOhms) to cell (\d+)", event_contents)
             if matches:
                 conditions['ImpedanceKOhms'] = matches.group(1)
                 conditions['Cell'] = matches.group(2)
                 event_contents = low_chassis_isolation_message
+        elif re.match(r'Module \d not connected', event_contents):
+            module_no = re.findall(r"\d+", event_contents)[0]
+            conditions['Module'] = module_no
+            condition_parts = event_contents.split(',')[1:]
+            for condition_part in condition_parts:
+                matches = re.match(r"^(.*)\s+([0-9][A-Za-z0-9]*)$", condition_part)
+                if matches:
+                    conditions[matches.group(1).strip()] = matches.group(2)
+            event_contents = 'Module not connected'
+        elif re.match(r'Battery module \d+ contactor closed', event_contents):
+            module_no = re.findall(r"\d+", event_contents)[0]
+            conditions['Module'] = module_no
+            event_contents = 'Battery module contactor closed'
+        elif re.match(r'Module \d\d', event_contents):
+            module_no = re.findall(r"\d+", event_contents)[0]
+            conditions['Module'] = module_no
+            event_contents = event_contents[:7] + event_contents[10:]
 
         return {'event_type': event_type,
                 'event_level': event_level,
