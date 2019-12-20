@@ -15,7 +15,7 @@ Run `git clone https://github.com/zero-motorcycle-community/zero-log-data-extrac
 Run the script from a command line or other script management tool.
 
 ```
-usage: extract_ride_data.py [-h] [--format {csv,tsv,json}] [--verbose]
+usage: extract_ride_data.py [-h] [--format {csv,tsv,json,all}] [--verbose]
                             [--omit-units] [--outfile OUTFILE]
                             logfile
 
@@ -24,7 +24,7 @@ positional arguments:
 
 optional arguments:
   -h, --help            show this help message and exit
-  --format {csv,tsv,json}
+  --format {csv,tsv,json,all}
                         the output format desired
   --verbose, -v         show more processing details
   --omit-units          omit units from the data values

@@ -376,8 +376,9 @@ class LogFile:
             'entries': [entry_data.to_json() for entry_data in self.entries]
         }
 
-    def output_to_file(self, output_filepath, output_format, line_sep=os.linesep):
+    def output_to_file(self, output_filepath, output_format, line_sep=os.linesep, verbose=0):
         """Emit output to the filepath in the given format."""
+        print('Emitting {} output to: {}'.format(output_format.upper(), output_filepath))
         log_headers = self.tabular_header_labels
         with open(output_filepath, 'w') as output:
             if output_format == 'csv':
@@ -397,8 +398,8 @@ if __name__ == "__main__":
     import argparse
 
     ARGS_PARSER = argparse.ArgumentParser()
-    ARGS_PARSER.add_argument("--format", default='tsv',
-                             choices=['csv', 'tsv', 'json'],
+    ARGS_PARSER.add_argument("--format", default='all',
+                             choices=['csv', 'tsv', 'json', 'all'],
                              help="the output format desired")
     ARGS_PARSER.add_argument("--verbose", "-v",
                              action='count', default=0,
@@ -420,10 +421,19 @@ if __name__ == "__main__":
     LOG_FILE = LogFile(LOG_FILEPATH, verbose=CLI_ARGS.verbose)
 
     OUTPUT_FORMAT = CLI_ARGS.format
-    OUTPUT_FILEPATH = CLI_ARGS.outfile
-    if not OUTPUT_FILEPATH:
-        OUTPUT_FILEPATH = os.path.splitext(LOG_FILEPATH)[0] + '.' + OUTPUT_FORMAT
 
     OMIT_UNITS = CLI_ARGS.omit_units
-    print('Emitting output to: {}'.format(OUTPUT_FILEPATH))
-    LOG_FILE.output_to_file(OUTPUT_FILEPATH, OUTPUT_FORMAT)
+
+    OUTPUT_FILEPATH = CLI_ARGS.outfile
+    if OUTPUT_FILEPATH:
+        BASE_FILEPATH = os.path.splitext(OUTPUT_FILEPATH)[0]
+    else:
+        BASE_FILEPATH = os.path.splitext(LOG_FILEPATH)[0]
+        OUTPUT_FILEPATH = BASE_FILEPATH + '.' + OUTPUT_FORMAT
+
+    if OUTPUT_FORMAT == 'all':
+        for output_format in ['csv', 'tsv', 'json']:
+            output_filepath = BASE_FILEPATH + '.' + output_format
+            LOG_FILE.output_to_file(output_filepath, output_format=output_format)
+    else:
+        LOG_FILE.output_to_file(OUTPUT_FILEPATH, OUTPUT_FORMAT)
