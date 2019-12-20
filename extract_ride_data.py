@@ -171,6 +171,8 @@ class LogEntry:
         elif event_contents.startswith('ERROR:'):
             event_level = 'ERROR'
             event_contents = event_contents[7:].strip()
+        elif ' error' in event_contents:
+            event_level = 'ERROR'
         return event_level, event_contents
 
     @classmethod
