@@ -78,12 +78,15 @@ And in JSON:
   "header": {
     "source": "MBB",
     "title": "﻿Zero MBB log",
-    "serial_no": "2015_mbb_48e0f7_00720",
-    "vin": "538SD9Z37GCGxxxxx",
-    "firmware_rev": "51",
-    "board_rev": "3",
-    "model": "DSR",
-    "num_entries": []
+    "metadata": {
+      "serial_no": "2015_mbb_48e0f7_00720",
+      "vin": "538SD9Z37GCGxxxxx",
+      "firmware_rev": "51",
+      "board_rev": "3",
+      "model": "DSR",
+      "num_entries": 8397,
+      "num_entries_expected": 8397
+    }
   },
   "entries": [
     {
