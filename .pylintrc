@@ -1,0 +1,4 @@
+[MASTER]
+ignore-patterns=test_.*
+
+jobs=4
