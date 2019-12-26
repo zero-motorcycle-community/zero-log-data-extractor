@@ -508,3 +508,10 @@ And in JSON:
   ]
 }
 ```
+
+## Example Scripts
+
+Select all riding events from JSON:
+```shell script
+jq '.entries|map(select(.event_type=="RIDING"))' example.json
+```
