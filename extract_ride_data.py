@@ -352,29 +352,12 @@ class ZeroLogEntry(LogEntry):
             component = 'Charger'
         elif 'External Chg' in message:
             component = 'External Charger'
+        elif 'Charger 6' in message:
+            component = 'Charge Tank'
         return component
 
-    def decode_message(self, message: str):
-        """Extract LogEntry properties from the log text after the timestamp."""
-        self.event_level, event_contents = self.decode_level_from_message(message)
-
-        self.event_type = self.decode_type_from_message(event_contents)
-        if self.event_type == 'UNKNOWN':
-            event_contents = EMPTY_CSV_VALUE
-
-        self.component = self.decode_component_from_message(event_contents)
-
-        # Identify and parse out conditions data:
-        first_keyword_match = re.search(r"[A-Za-z]+:", event_contents)
-        if first_keyword_match:
-            idx = first_keyword_match.start(0)
-            conditions_field = event_contents[idx:].strip()
-            event_contents = event_contents[:idx].strip()
-            self.conditions = self.conditions_to_dict(conditions_field)
-        else:
-            self.conditions = {}
-
-        # Identify special conditions in the event contents:
+    def decode_special_message_conditions(self, event_contents: str) -> str:
+        """Identify special conditions in the event contents"""
         if event_contents.startswith(self.curr_limited_message):
             matches = re.search(r"(\d+) A \((\d+\.?\d+%)\)", event_contents)
             if matches:
@@ -404,6 +387,37 @@ class ZeroLogEntry(LogEntry):
             module_no = re.findall(r"\d+", event_contents)[0]
             self.conditions['Module'] = module_no
             event_contents = event_contents[:7] + event_contents[10:]
+        elif self.component == 'Charge Tank':
+            if self.conditions.get('SW') and ' ' in self.conditions['SW']:
+                # Example entry for "Charger 6": 'SN:1838032 SW:206 247Vac  62Hz EVSE 41A'
+                sw_conditions = self.conditions['SW'].split()
+                self.conditions['SW'] = sw_conditions[0]
+                self.conditions['EVSE Voltage'] = sw_conditions[1]
+                self.conditions['EVSE Frequency'] = sw_conditions[2]
+                self.conditions['EVSE Amps'] = sw_conditions[4]
+        return event_contents
+
+    def decode_message(self, message: str):
+        """Extract LogEntry properties from the log text after the timestamp."""
+        self.event_level, event_contents = self.decode_level_from_message(message)
+
+        self.event_type = self.decode_type_from_message(event_contents)
+        if self.event_type == 'UNKNOWN':
+            event_contents = EMPTY_CSV_VALUE
+
+        self.component = self.decode_component_from_message(event_contents)
+
+        # Identify and parse out conditions data:
+        first_keyword_match = re.search(r"[A-Za-z]+:", event_contents)
+        if first_keyword_match:
+            idx = first_keyword_match.start(0)
+            conditions_field = event_contents[idx:].strip()
+            event_contents = event_contents[:idx].strip()
+            self.conditions = self.conditions_to_dict(conditions_field)
+        else:
+            self.conditions = {}
+
+        event_contents = self.decode_special_message_conditions(event_contents)
 
         self.event = event_contents
 
