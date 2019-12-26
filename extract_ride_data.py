@@ -332,6 +332,11 @@ class ZeroLogEntry(LogEntry):
             event_type = 'CONNECTED'
         if message.endswith(' Disconnected') or message.endswith('Link Down'):
             event_type = 'DISCONNECTED'
+        if message.startswith('Turning'):
+            if 'ON' in message:
+                event_type = 'ON'
+            elif 'OFF' in message:
+                event_type = 'OFF'
         if message.endswith(' On') or ' On ' in message:
             event_type = 'ON'
         if message.endswith(' Off') or ' Off ' in message:
@@ -348,6 +353,8 @@ class ZeroLogEntry(LogEntry):
             component = 'Battery'
         elif 'Sevcon' in message:
             component = 'Controller'
+        elif 'DCDC' in message:
+            component = 'DC-DC Converter'
         elif 'Calex' in message:
             component = 'Charger'
         elif 'External Chg' in message:
