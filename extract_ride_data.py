@@ -329,8 +329,8 @@ class ZeroLogEntry(LogEntry):
     event_types_by_suffix = {
         ' Connected': 'CONNECTED',
         ' Disconnected': 'DISCONNECTED',
-        'Link Up': 'CONNECTED',
-        'Link Down': 'DISCONNECTED',
+        ' Link Up': 'CONNECTED',
+        ' Link Down': 'DISCONNECTED',
         ' On': 'ON',
         ' Off': 'OFF'
     }
@@ -352,6 +352,8 @@ class ZeroLogEntry(LogEntry):
                 event_type = 'ON'
             elif 'OFF' in message:
                 event_type = 'OFF'
+        if 'Charging' in message and 'from Charging' not in message:
+            event_type = 'CHARGING'
         if 'Limit' in message:
             event_type = 'LIMIT'
         return event_type
