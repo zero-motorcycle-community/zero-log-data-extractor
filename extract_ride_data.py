@@ -318,29 +318,40 @@ class ZeroLogEntry(LogEntry):
             event_level = 'ERROR'
         return event_level, event_contents
 
+    event_types_by_prefix = {
+        '0x': 'UNKNOWN',
+        'Riding': 'RIDING',
+        'Charging': 'CHARGING',
+        'Enabling': 'ENABLING',
+        'Disabling': 'DISABLING',
+    }
+
+    event_types_by_suffix = {
+        ' Connected': 'CONNECTED',
+        ' Disconnected': 'DISCONNECTED',
+        'Link Up': 'CONNECTED',
+        'Link Down': 'DISCONNECTED',
+        ' On': 'ON',
+        ' Off': 'OFF'
+    }
+
     @classmethod
     def decode_type_from_message(cls, message: str) -> str:
         """Check contents for event type."""
         event_type = EMPTY_CSV_VALUE
-        if message.startswith('0x'):
-            event_type = 'UNKNOWN'
-        if message.startswith('Riding'):
-            event_type = 'RIDING'
-        if message.startswith('Charging'):
-            event_type = 'CHARGING'
-        if message.endswith(' Connected') or message.endswith('Link Up'):
-            event_type = 'CONNECTED'
-        if message.endswith(' Disconnected') or message.endswith('Link Down'):
-            event_type = 'DISCONNECTED'
+        for prefix, event_type_value in cls.event_types_by_prefix.items():
+            if message.startswith(prefix):
+                event_type = event_type_value
+                break
+        for suffix, event_type_value in cls.event_types_by_suffix.items():
+            if message.endswith(suffix):
+                event_type = event_type_value
+                break
         if message.startswith('Turning'):
             if 'ON' in message:
                 event_type = 'ON'
             elif 'OFF' in message:
                 event_type = 'OFF'
-        if message.endswith(' On') or ' On ' in message:
-            event_type = 'ON'
-        if message.endswith(' Off') or ' Off ' in message:
-            event_type = 'OFF'
         if 'Limit' in message:
             event_type = 'LIMIT'
         return event_type
