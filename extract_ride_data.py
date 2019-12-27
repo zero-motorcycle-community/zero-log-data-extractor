@@ -265,6 +265,8 @@ class ZeroLogHeader(LogHeader):
 class ZeroLogEntry(LogEntry):
     """Parse and represent the metadata, message, and data in a Zero Motorcycles log entry."""
     entry: int = 0
+    segment_id: int = 0
+    segment_activity: str = EMPTY_CSV_VALUE
     event: str = EMPTY_CSV_VALUE
     event_level: str = EMPTY_CSV_VALUE
     event_type: str = EMPTY_CSV_VALUE
@@ -358,23 +360,29 @@ class ZeroLogEntry(LogEntry):
             event_type = 'LIMIT'
         return event_type
 
+    components_by_message_part = {
+        'Battery': 'Battery',
+        'Sevcon': 'Controller',
+        'DCDC': 'DC-DC Converter',
+        'Calex': 'Charger',
+        'External Chg': 'External Charger',
+        'Charger 6': 'Charge Tank'
+    }
+
     @classmethod
     def decode_component_from_message(cls, message: str) -> str:
         """Check contents for components"""
         component = 'MBB'
-        if message.startswith('Module ') or 'Battery' in message:
+        if message.startswith('Module '):
             component = 'Battery'
-        elif 'Sevcon' in message:
-            component = 'Controller'
-        elif 'DCDC' in message:
-            component = 'DC-DC Converter'
-        elif 'Calex' in message:
-            component = 'Charger'
-        elif 'External Chg' in message:
-            component = 'External Charger'
-        elif 'Charger 6' in message:
-            component = 'Charge Tank'
+        else:
+            for part, component_value in cls.components_by_message_part.items():
+                if part in message:
+                    component = component_value
+                    break
         return component
+
+    module_no_condition_key = 'Module'
 
     def decode_special_message_conditions(self, event_contents: str) -> str:
         """Identify special conditions in the event contents"""
@@ -392,7 +400,7 @@ class ZeroLogEntry(LogEntry):
                 event_contents = self.low_chassis_isolation_message
         elif re.match(r'Module \d not connected', event_contents):
             module_no = re.findall(r"\d+", event_contents)[0]
-            self.conditions['Module'] = module_no
+            self.conditions[self.module_no_condition_key] = module_no
             condition_parts = event_contents.split(',')[1:]
             for condition_part in condition_parts:
                 matches = re.match(r"^(.*)\s+([0-9][A-Za-z0-9]*)$", condition_part)
@@ -401,11 +409,11 @@ class ZeroLogEntry(LogEntry):
             event_contents = 'Module not connected'
         elif re.match(r'Battery module \d+ contactor closed', event_contents):
             module_no = re.findall(r"\d+", event_contents)[0]
-            self.conditions['Module'] = module_no
+            self.conditions[self.module_no_condition_key] = module_no
             event_contents = 'Battery module contactor closed'
         elif re.match(r'Module \d\d', event_contents):
             module_no = re.findall(r"\d+", event_contents)[0]
-            self.conditions['Module'] = module_no
+            self.conditions[self.module_no_condition_key] = module_no
             event_contents = event_contents[:7] + event_contents[10:]
         elif self.component == 'Charge Tank':
             if self.conditions.get('SW') and ' ' in self.conditions['SW']:
@@ -467,8 +475,36 @@ class ZeroLogEntry(LogEntry):
         return result
 
     def has_log_level(self):
-        """Return whether the event has a log level."""
+        """Whether the event has a log level."""
         return self.event_level in ['INFO', 'DEBUG', 'WARNING', 'ERROR']
+
+    def is_battery_event(self):
+        """Whether the event is battery-related."""
+        return self.component == 'Battery'
+
+    def battery_module_no(self) -> Optional[int]:
+        """Which battery module, if any, is involved."""
+        if self.is_battery_event():
+            return int(self.conditions[self.module_no_condition_key])
+        return None
+
+    def is_contactor_close_entry(self) -> bool:
+        """Whether the event means the/a contactor is closing."""
+        return (self.is_battery_event() and self.event == 'Module Closing Contactor'
+                and self.battery_module_no() == 0)
+
+    def is_contactor_open_entry(self) -> bool:
+        """Whether the event means the/a contactor is closing."""
+        return (self.is_battery_event() and self.event == 'Module Opening Contactor'
+                and self.battery_module_no() == 0)
+
+    def is_running_entry(self) -> bool:
+        """Whether the event is a riding event."""
+        return self.event_type == 'RIDING'
+
+    def is_charging_entry(self) -> bool:
+        """Whether the event is a charging event."""
+        return self.event_type == 'CHARGING'
 
     def print_property_tabular(self, index, key, omit_units=False):
         """For tabular output, print a built-in property or condition value."""
@@ -487,6 +523,8 @@ class ZeroLogEntry(LogEntry):
         """Convert to JSON-serializable data structure."""
         return {
             'entry': self.entry or None,
+            'segment_id': self.segment_id,
+            'segment_activity': self.segment_activity,
             'timestamp': hasattr(self, 'timestamp') and str(self.timestamp) or '',
             'component': self.component,
             'event_type': self.event_type,
@@ -502,11 +540,33 @@ class ZeroLogFile(LogFile):
     entries: List[ZeroLogEntry] = []
 
     common_headers = ['entry',
+                      'segment_id',
+                      'segment_activity',
                       'timestamp',
                       'component',
                       'event_type',
                       'event_level',
                       'event']
+
+    def annotate_entry_segment_info(self):
+        """Auto-increment a numeric ID for each sequence of entries for a closed contactor."""
+        current_segment_id = 0
+        current_activity = 'STOPPED'
+        for entry in self.entries:
+            if entry.is_contactor_close_entry():
+                current_activity = 'STARTED'
+                current_segment_id += 1
+            elif entry.is_contactor_close_entry():
+                current_activity = 'STOPPED'
+                current_segment_id += 1
+            elif entry.is_running_entry() and current_activity != 'RIDING':
+                current_activity = 'RIDING'
+                current_segment_id += 1
+            elif entry.is_charging_entry() and current_activity != 'CHARGING':
+                current_activity = 'CHARGING'
+                current_segment_id += 1
+            entry.segment_id = current_segment_id
+            entry.segment_activity = current_activity
 
     def refresh(self, verbose=0):
         """Parse the input file into state."""
@@ -519,6 +579,7 @@ class ZeroLogFile(LogFile):
             self.entries = [ZeroLogEntry(line, index=index, verbose=verbose)
                             for index, line in enumerate(log_file.readlines())
                             if line and len(line) > 5]
+        self.annotate_entry_segment_info()
         self.tabular_header_labels = self.common_headers + self.all_conditions_keys
 
     @property

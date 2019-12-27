@@ -129,9 +129,11 @@ class TestZeroLogEntry(TestCase):
         self.assertEqual(7758, log_entry.entry)
         self.assertEqual('ERROR', log_entry.event_level)
         self.assertEqual('Battery', log_entry.component)
+        self.assertTrue(log_entry.is_battery_event())
         self.assertEqual('Module maximum connection retries reached. Flagging ineligble.',
                          log_entry.event)
         self.assertDictEqual({'Module': '01'}, log_entry.conditions)
+        self.assertEqual(1, log_entry.battery_module_no())
 
     def test_module_not_connected(self):
         log_entry = ZeroLogEntry('''
@@ -153,3 +155,4 @@ class TestZeroLogEntry(TestCase):
                           'Max charge': '10cx10',
                           'max discharge': '100cx10'},
                          log_entry.conditions)
+        self.assertEqual(1, log_entry.battery_module_no())
