@@ -556,7 +556,7 @@ class ZeroLogFile(LogFile):
             if entry.is_contactor_close_entry():
                 current_activity = 'STARTED'
                 current_segment_id += 1
-            elif entry.is_contactor_close_entry():
+            elif entry.is_contactor_open_entry():
                 current_activity = 'STOPPED'
                 current_segment_id += 1
             elif entry.is_running_entry() and current_activity != 'RIDING':
