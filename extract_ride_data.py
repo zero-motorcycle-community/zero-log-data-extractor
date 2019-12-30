@@ -241,7 +241,9 @@ class ZeroLogHeader(LogHeader):
         """Convert to JSON-serializable data structure."""
         output = {
             'source': self.log_source,
-            'title': self.log_title
+            'title': self.log_title,
+            'num_entries': self.log_entries_count_actual,
+            'num_entries_expected': self.log_entries_count_expected
         }
         if self.log_source == 'MBB':
             output['metadata'] = {
@@ -249,9 +251,7 @@ class ZeroLogHeader(LogHeader):
                 'vin': self.mbb_metadata.vin,
                 'firmware_rev': self.mbb_metadata.firmware_rev,
                 'board_rev': self.mbb_metadata.board_rev,
-                'model': self.mbb_metadata.model,
-                'num_entries': self.log_entries_count_actual,
-                'num_entries_expected': self.log_entries_count_expected
+                'model': self.mbb_metadata.model
             }
         if self.log_source == 'BMS':
             output['metadata'] = {
