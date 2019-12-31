@@ -267,7 +267,7 @@ class ZeroLogHeader extends LogHeader {
 
   /**
    * @param headerLines {[string]}
-   * @param prefix {?string}
+   * @param prefix {string}
    */
   valueFromHeaderLines(headerLines, prefix) {
     const matchingLine = headerLines.find((headerLine) => headerLine.startsWith(prefix));
@@ -438,14 +438,50 @@ class ZeroLogEntry extends LogEntry {
    */
   decodeSpecialMessageConditions(messageText) {
     if (messageText.startsWith(this.currentLimitedMessage)) {
-      // TODO decode per decode_special_message_conditions
-      return this.currentLimitedMessage;
+      const matches = /(\d+) A \((\d+\.?\d+%)\)/.exec(messageText);
+      if (matches) {
+        this.conditions['BattAmps'] = matches[1];
+        this.conditions['PackSOC'] = matches[2];
+        return this.currentLimitedMessage;
+      }
     }
     if (messageText.startsWith(this.lowChassisIsolationMessage)) {
-      // TODO decode per decode_special_message_conditions
-      return this.lowChassisIsolationMessage;
+      const matches = /(\d+ KOhms) to cell (\d+)/.exec(messageText);
+      if (matches) {
+        this.conditions['ImpedanceKOhms'] = matches[1];
+        this.conditions['Cell'] = matches[2];
+        return this.lowChassisIsolationMessage;
+      }
     }
-    // TODO finish per decode_special_message_conditions
+    if (/Module \d+ not connected/.test(messageText)) {
+      this.conditions[this.moduleNoConditionKey] = /\d+/.exec(messageText)[0];
+      const conditionParts = messageText.split(',').slice(1);
+      conditionParts.forEach((conditionPart) => {
+        const matches = /^(.*)\s+([0-9][A-Za-z0-9]*)$/.exec(conditionPart);
+        if (matches) {
+          this.conditions[matches[1].trim()] = matches[2];
+        }
+      });
+      return 'Module not connected';
+    }
+    if (/Battery module \d+ contactor closed/.test(messageText)) {
+      this.conditions[this.moduleNoConditionKey] = /\d+/.exec(messageText)[0];
+      return 'Battery module contactor closed';
+    }
+    if (/Module \d\d/.test(messageText)) {
+      this.conditions[this.moduleNoConditionKey] = /\d+/.exec(messageText)[0];
+      return messageText.slice(0,7) + messageText.slice(10);
+    }
+    if (this.component === 'Charge Tank') {
+      if (this.conditions.hasOwnProperty('SW') && this.conditions['SW'].includes(' ')) {
+        // Example entry for "Charger 6": 'SN:1838032 SW:206 247Vac  62Hz EVSE 41A'
+        const conditionsFromSW = this.conditions['SW'].split(/\s+/);
+        this.conditions['SW'] = conditionsFromSW[0];
+        this.conditions['EVSE Voltage'] = conditionsFromSW[1];
+        this.conditions['EVSE Frequency'] = conditionsFromSW[2];
+        this.conditions['EVSE Amps'] = conditionsFromSW[4];
+      }
+    }
     return messageText;
   }
 
