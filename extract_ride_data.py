@@ -166,38 +166,36 @@ ZeroHeaderBMSMetadata = namedtuple('ZeroHeaderBMSMetadata',
                                    ['serial_no', 'pack_serial_no', 'initial_date'])
 
 
+def is_log_divider_line(log_line: str) -> bool:
+    """The log divider line immediately precedes the log entries."""
+    return log_line.startswith('+-----')
+
+
 class ZeroLogHeader(LogHeader):
     """Parse and represent the metadata in a Zero Motorcycles log header."""
     log_entries_count_actual: int = 0
     log_entries_count_expected: int = 0
     divider_indexes: List[int]
-    mbb_metadata: ZeroHeaderMBBMetadata
-    bms_metadata: ZeroHeaderBMSMetadata
+    mbb_metadata: Optional[ZeroHeaderMBBMetadata]
+    bms_metadata: Optional[ZeroHeaderBMSMetadata]
 
-    def __init__(self, log_input_file: IO, verbose=0):
+    def __init__(self, log_lines: List[str], verbose=0):
         if verbose > 0:
             print("Reading header")
-        header_lines = self.read_header_lines(log_input_file)
+        header_lines = log_lines[0:self.index_of_divider_line(log_lines) + 1]
         self.log_title = header_lines[0].strip()
         if self.log_source == 'MBB':
-            serial_no = self.value_from_lines(header_lines, prefix='Serial number')
-            vin = self.value_from_lines(header_lines, prefix='VIN')
-            firmware_rev = self.value_from_lines(header_lines, prefix='Firmware rev.')
-            board_rev = self.value_from_lines(header_lines, prefix='Board rev.')
-            model = self.value_from_lines(header_lines, prefix='Model')
             self.mbb_metadata = ZeroHeaderMBBMetadata(
-                serial_no=serial_no,
-                vin=vin,
-                firmware_rev=firmware_rev,
-                board_rev=board_rev,
-                model=model)
+                serial_no=self.value_from_lines(header_lines, prefix='Serial number'),
+                vin=self.value_from_lines(header_lines, prefix='VIN'),
+                firmware_rev=self.value_from_lines(header_lines, prefix='Firmware rev.'),
+                board_rev=self.value_from_lines(header_lines, prefix='Board rev.'),
+                model=self.value_from_lines(header_lines, prefix='Model'))
         elif self.log_source == 'BMS':
             initial_date = self.value_from_lines(header_lines, prefix='Initial date')
-            serial_no = self.value_from_lines(header_lines, prefix='BMS serial number')
-            pack_serial_no = self.value_from_lines(header_lines, prefix='Pack serial number')
             self.bms_metadata = ZeroHeaderBMSMetadata(
-                serial_no=serial_no,
-                pack_serial_no=pack_serial_no,
+                serial_no=self.value_from_lines(header_lines, prefix='BMS serial number'),
+                pack_serial_no=self.value_from_lines(header_lines, prefix='Pack serial number'),
                 initial_date=datetime.strptime(initial_date, '%b %d %Y %H:%M:%S') or initial_date)
         self.log_entries_count_actual, self.log_entries_count_expected = \
             [int(count) for count in re.findall(r"\d+", header_lines[-4])]
@@ -205,10 +203,18 @@ class ZeroLogHeader(LogHeader):
         self.column_labels = [hdg.strip() for hdg in re.split(r"\s\s+", header_lines[-1])]
 
     @classmethod
+    def index_of_divider_line(cls, log_lines: List[str]) -> int:
+        """Which line number is the divider line."""
+        last_header_line_index = 0
+        while not is_log_divider_line(log_lines[last_header_line_index]):
+            last_header_line_index += 1
+        return last_header_line_index
+
+    @classmethod
     def read_header_lines(cls, log_input_file: IO):
         """Read the header lines in for parsing/initialization."""
         header_lines = [log_input_file.readline()]
-        while not header_lines[-1].startswith('+-----'):
+        while not is_log_divider_line(header_lines[-1]):
             header_lines.append(log_input_file.readline().strip())
         return header_lines
 
@@ -573,12 +579,14 @@ class ZeroLogFile(LogFile):
         with open(self.input_filepath) as log_file:
             if verbose > 0:
                 print("Reading log header from: {}".format(self.input_filepath))
-            self.header = ZeroLogHeader(log_file, verbose=verbose)
-            if verbose > 0:
-                print("Reading log entries from: {}".format(self.input_filepath))
-            self.entries = [ZeroLogEntry(line, index=index, verbose=verbose)
-                            for index, line in enumerate(log_file.readlines())
-                            if line and len(line) > 5]
+            log_lines = log_file.readlines()
+            self.header = ZeroLogHeader(log_lines, verbose=verbose)
+        if verbose > 0:
+            print("Reading log entries from: {}".format(self.input_filepath))
+        divider_index = self.header.index_of_divider_line(log_lines)
+        self.entries = [ZeroLogEntry(line, index=index, verbose=verbose)
+                        for index, line in enumerate(log_lines)
+                        if index > divider_index and line and len(line) > 5]
         self.annotate_entry_segment_info()
         self.tabular_header_labels = self.common_headers + self.all_conditions_keys
 
