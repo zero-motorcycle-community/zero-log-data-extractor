@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 """Decode a Zero Motorcycles VIN into usable attributes."""
 
 YEARS_BY_CODE = {
@@ -139,3 +141,28 @@ def decode_vin(vin: str) -> {}:
         },
         'pack_capacity': model_line_capacity
     }
+
+
+if __name__ == '__main__':
+    import argparse
+
+    ARGS_PARSER = argparse.ArgumentParser()
+    ARGS_PARSER.add_argument('vin',
+                             help="the VIN to process")
+    ARGS_PARSER.add_argument('--format', default='text',
+                             choices=['json', 'text'],
+                             help="the format to print the output")
+
+    CLI_ARGS = ARGS_PARSER.parse_args()
+    decoded = decode_vin(CLI_ARGS.vin)
+    FORMAT = CLI_ARGS.format
+    if FORMAT == 'json':
+        import json
+        print(json.dumps(decoded))
+    elif FORMAT == 'text':
+        for k, v in decoded.items():
+            if isinstance(v, dict):
+                for k1, v1 in v.items():
+                    print('{}_{}:\t{}'.format(k.upper(), k1.upper(), v1))
+            else:
+                print('{}:\t{}'.format(k.upper(), v))
