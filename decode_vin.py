@@ -96,16 +96,8 @@ MODELS_BY_CODE = {
 
 def decode_vin(vin: str) -> {}:
     """The metadata about the bike decoded from the VIN."""
-    manufacturer_id = vin[:3]
+    model_year = YEARS_BY_CODE[vin[9]]
     platform_code = vin[3]
-    model_line_code = vin[4:6]
-    motor_code = vin[6:8]
-    # check_digit = vin[8]
-    model_year_code = vin[9]
-    plant_location_code = vin[10]
-    model_code = vin[11]
-    # serial_no = vin[-5:]
-    model_year = YEARS_BY_CODE[model_year_code]
     if platform_code == 'X':
         platform = 'XMX' if model_year > 2012 else platform_code
     elif platform_code == 'S':
@@ -114,30 +106,30 @@ def decode_vin(vin: str) -> {}:
         platform = 'FST'
     else:
         platform = None
-    model = MODELS_BY_CODE[model_code]
-    model_line = MODEL_LINES_BY_CODE[model_line_code]
-    model_line_parts = model_line.split(' ')
+    model_line_parts = MODEL_LINES_BY_CODE[vin[4:6]].split(' ')
     model_from_line = model_line_parts[0]
-    # if model_from_line and '/' in model and '/' not in model_from_line.group(0):
-    #     model = model_from_line.group(0)
-    if 'SR/DSR' in model and 2013 < model_year < 2016:
-        model = 'SR'
     model_line_capacity = model_line_parts[1] if len(model_line_parts) > 1 else None
     model_line_power = model_line_parts[2] if len(model_line_parts) > 2 else None
-    motor = MOTORS_BY_CODE[motor_code]
-    motor_parts = motor.split(' ', 2)
-    motor_power = motor_parts[0]
-    motor_size = motor_parts[1] if len(motor_parts) > 1 else model_line_power
-    if '/' in model and motor_size:
-        if 'DS/DSR' in model:
-            model = 'DSR' if motor_size == '75-7R' else 'DS'
-        elif 'S/SR' in model:
-            model = 'SR' if motor_size == '75-7R' else 'S'
-    if 'SR/DSR' in model:
-        model = 'DSR' if 'DS' in model_from_line else 'SR'
+    motor_parts = MOTORS_BY_CODE[vin[6:8]].split(' ', 2)
+    motor_power = motor_parts[0] or model_line_power
+    motor_size = motor_parts[1] if len(motor_parts) > 1 else None
+    model = MODELS_BY_CODE[vin[11]]
+    if '/' in model:
+        # if model_from_line and '/' not in model_from_line.group(0):
+        #     model = model_from_line.group(0)
+        if model == 'SR/DSR':
+            if 2013 < model_year < 2016:
+                model = 'SR'
+            else:
+                model = 'DSR' if 'DS' in model_from_line else 'SR'
+        if motor_size:
+            if 'DS/DSR' in model:
+                model = 'DSR' if motor_size == '75-7R' else 'DS'
+            elif 'S/SR' in model:
+                model = 'SR' if motor_size == '75-7R' else 'S'
     return {
-        'manufacturer': 'Zero Motorcycles' if manufacturer_id == '538' else None,
-        'plant_location': 'Santa Cruz, CA' if plant_location_code == 'C' else None,
+        'manufacturer': 'Zero Motorcycles' if vin[:3] == '538' else None,
+        'plant_location': 'Santa Cruz, CA' if vin[10] == 'C' else None,
         'year': model_year,
         'platform': platform,
         'model': model,
