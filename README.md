@@ -80,12 +80,24 @@ And in JSON:
     "title": "﻿Zero MBB log",
     "num_entries": 8397,
     "num_entries_expected": 8397,
-    "metadata": {
+    "mbb": {
       "serial_no": "2015_mbb_48e0f7_00720",
       "vin": "538SD9Z37GCGxxxxx",
       "firmware_rev": "51",
       "board_rev": "3",
       "model": "DSR"
+    },
+    "model": {
+      "manufacturer": "Zero Motorcycles",
+      "plant_location": "Santa Cruz, CA",
+      "year": 2016,
+      "platform": "SDS",
+      "model": "DSR",
+      "motor": {
+        "power": "16kW",
+        "size": "75-7R"
+      },
+      "pack_capacity": "13.0"
     }
   },
   "entries": [

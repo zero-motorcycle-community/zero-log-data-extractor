@@ -1,6 +1,45 @@
 from unittest import TestCase
 from datetime import datetime
-from extract_ride_data import LogEntry, ZeroLogEntry
+from extract_ride_data import ZeroLogHeader, LogEntry, ZeroLogEntry
+
+
+class TestLogHeader(TestCase):
+    def test_decode(self):
+        log_text = '''Zero MBB log
+
+Serial number      2015_mbb_48e0f7_00720
+VIN                538SD9Z37GCG06073
+Firmware rev.      51
+Board rev.         3
+Model              DSR
+
+Printing 8397 of 8397 log entries..
+
+ Entry    Time of Log            Event                      Conditions
++--------+----------------------+--------------------------+----------------------------------
+ 00001     05/13/2018 10:06:43   DEBUG: Sevcon Contactor Drive ON.
+'''
+        log_lines = log_text.split('\n')
+        log_header = ZeroLogHeader(log_lines)
+        self.assertEqual({
+            'mbb': {
+                'board_rev': '3',
+                'firmware_rev': '51',
+                'model': 'DSR',
+                'serial_no': '2015_mbb_48e0f7_00720',
+                'vin': '538SD9Z37GCG06073'},
+            'model': {'manufacturer': 'Zero Motorcycles',
+                      'model': 'DSR',
+                      'motor': {'power': '16kW', 'size': '75-7R'},
+                      'pack_capacity': '13.0',
+                      'plant_location': 'Santa Cruz, CA',
+                      'platform': 'SDS',
+                      'year': 2016},
+            'num_entries': 8397,
+            'num_entries_expected': 8397,
+            'source': 'MBB',
+            'title': 'Zero MBB log'
+        }, log_header.to_json())
 
 
 class TestLogEntry(TestCase):
