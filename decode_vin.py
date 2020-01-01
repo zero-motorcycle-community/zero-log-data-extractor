@@ -154,15 +154,19 @@ if __name__ == '__main__':
                              help="the format to print the output")
 
     CLI_ARGS = ARGS_PARSER.parse_args()
-    decoded = decode_vin(CLI_ARGS.vin)
+    DECODED = decode_vin(CLI_ARGS.vin)
     FORMAT = CLI_ARGS.format
     if FORMAT == 'json':
         import json
-        print(json.dumps(decoded))
+        print(json.dumps(DECODED))
     elif FORMAT == 'text':
-        for k, v in decoded.items():
+        def print_kv(label, value):
+            """nicer print"""
+            human_key = ' '.join(map(lambda x: x.capitalize(), label.split('_')))
+            print('{}:\t{}'.format(human_key, value))
+        for k, v in DECODED.items():
             if isinstance(v, dict):
                 for k1, v1 in v.items():
-                    print('{}_{}:\t{}'.format(k.upper(), k1.upper(), v1))
+                    print_kv(k.upper() + '_' + k1.upper(), v1)
             else:
-                print('{}:\t{}'.format(k.upper(), v))
+                print_kv(k, v)

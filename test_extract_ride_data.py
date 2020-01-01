@@ -19,7 +19,7 @@ Printing 8397 of 8397 log entries..
 +--------+----------------------+--------------------------+----------------------------------
  00001     05/13/2018 10:06:43   DEBUG: Sevcon Contactor Drive ON.
 '''
-        log_lines = log_text.split('\n')
+        log_lines = log_text.splitlines()
         log_header = ZeroLogHeader(log_lines)
         self.assertEqual({
             'mbb': {
