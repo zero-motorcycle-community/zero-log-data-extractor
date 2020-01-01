@@ -315,6 +315,7 @@ class ZeroLogEntry extends LogEntry {
           console.warn("Unable to parse timestamp", timestampText);
         }
       }
+      self.decodeMessage(logLine.slice(33).trim());
     } catch (e) {
       console.error("Decoding line failed from content: ", index, logLine);
     }
