@@ -1,0 +1,149 @@
+"""Decode a Zero Motorcycles VIN into usable attributes."""
+
+YEARS_BY_CODE = {
+    '9': 2009,
+    'A': 2010,
+    'B': 2011,
+    'C': 2012,
+    'D': 2013,
+    'E': 2014,
+    'F': 2015,
+    'G': 2016,
+    'H': 2017,
+    'I': 2018,
+    'J': 2019,
+    'K': 2020,
+}
+
+
+MOTORS_BY_CODE = {
+    'M3': '9.1kW',
+    'ZA': '11kW 75-5',
+    'ZB': '11kW 75-7',
+    'Z1': '13kW',
+    'Z2': '16kW 75-7',
+    'Z3': '16kW 75-7R',
+    'Z4': '17kW 75-5',
+    'Z5': '21kW 75-7',
+    'Z6': '21kW 75-7R',
+    'Z7': '40kW 75-10R'
+}
+
+
+MODEL_LINES_BY_CODE = {
+    'M2': 'S',
+    'M3': 'S',
+    'M4': 'S/SR/SP 8.5',
+    'M5': 'S/SR/SP 11.4',
+    'M7': 'S/SR/SP 9.4',
+    'M8': 'S/SR/SP 12.5',
+    'M9': 'S/SR/SP 13.0',
+    'M0': 'S/SR/SP 9.8',
+    'MB': 'S/SP 6.5',
+    'MC': 'S/SR/SP/SRP 13.0',
+    'MD': 'S 13.0 (11kW)',
+    'ME': 'S 7.2 (11kW)',
+    'MF': 'S/SR 14.4',
+    'MG': 'S 14.4 (11kW)',
+    'MH': 'S 7.2 (11kW)',
+    'MK': 'S 14.4 (11kW)',
+    'D2': 'DS',
+    'D3': 'DS',
+    'D4': 'DS',
+    'D5': 'DS/DSR/DSP 11.4',
+    'D6': 'DS/DSR/DSP 8.5',
+    'D7': 'DS/DSR/DSP 9.4',
+    'D8': 'DS/DSR/DSP 12.5',
+    'D9': 'DS/DSR/DSP 13.0',
+    'D0': 'DS/DSR/DSP 9.8',
+    'DA': 'DS 6.5',
+    'DB': 'DS/DSR/DSP/DSRP 13.0',
+    'DC': 'DS 7.2 (11kW)',
+    'DD': 'DS/DSR 14.4',
+    'DE': 'DS 14.4 (11kW)',
+    'DF': 'DS 7.2 (11kW)',
+    'DH': 'DS 14.4 (11kW)',
+    'X2': 'MX',
+    'X3': 'FX',
+    'X4': 'FX/FXL',
+    'X5': 'FXP/FXLP',
+    'X6': 'FX/FXS',
+    'X7': 'FXP',
+    'X8': 'FX/FXS',
+    'X9': 'FXP',
+    'XB': 'FX/FXS/FXP',
+    'XC': 'FX/FXS/FXP',
+    'C2': 'XU-LSM (CA)',
+    'L2': 'XU-M (EU)',
+    'U1': 'XU',
+    'U2': 'XU',
+    'U3': 'XU',
+    'FA': 'SRF'
+}
+
+
+MODELS_BY_CODE = {
+    'A': 'S',
+    'B': 'DS',
+    'C': 'FX',
+    'E': 'XU',
+    'G': 'SR/DSR',
+    'H': 'FXP',
+    'J': 'FXS',
+    'K': 'SRF'
+}
+
+
+def decode_vin(vin: str) -> {}:
+    """The metadata about the bike decoded from the VIN."""
+    manufacturer_id = vin[:3]
+    platform_code = vin[3]
+    model_line_code = vin[4:6]
+    motor_code = vin[6:8]
+    # check_digit = vin[8]
+    model_year_code = vin[9]
+    plant_location_code = vin[10]
+    model_code = vin[11]
+    # serial_no = vin[-5:]
+    model_year = YEARS_BY_CODE[model_year_code]
+    if platform_code == 'X':
+        platform = 'XMX' if model_year > 2012 else platform_code
+    elif platform_code == 'S':
+        platform = 'SDS' if model_year > 2012 else platform_code
+    elif platform_code == 'Z':
+        platform = 'FST'
+    else:
+        platform = None
+    model = MODELS_BY_CODE[model_code]
+    model_line = MODEL_LINES_BY_CODE[model_line_code]
+    model_line_parts = model_line.split(' ')
+    model_from_line = model_line_parts[0]
+    # if model_from_line and '/' in model and '/' not in model_from_line.group(0):
+    #     model = model_from_line.group(0)
+    if 'SR/DSR' in model and 2013 < model_year < 2016:
+        model = 'SR'
+    model_line_capacity = model_line_parts[1] if len(model_line_parts) > 1 else None
+    model_line_power = model_line_parts[2] if len(model_line_parts) > 2 else None
+    motor = MOTORS_BY_CODE[motor_code]
+    motor_parts = motor.split(' ', 2)
+    motor_power = motor_parts[0]
+    motor_size = motor_parts[1] if len(motor_parts) > 1 else model_line_power
+    if '/' in model and motor_size:
+        if 'DS/DSR' in model:
+            model = 'DSR' if motor_size == '75-7R' else 'DS'
+        elif 'S/SR' in model:
+            model = 'SR' if motor_size == '75-7R' else 'S'
+    if 'SR/DSR' in model:
+        model = 'DSR' if 'DS' in model_from_line else 'SR'
+    return {
+        'manufacturer': 'Zero Motorcycles' if manufacturer_id == '538' else None,
+        'plant_location': 'Santa Cruz, CA' if plant_location_code == 'C' else None,
+        'year': model_year,
+        'platform': platform,
+        'model': model,
+        'motor': {
+            'power': motor_power,
+            'size': motor_size
+        },
+        'pack_capacity': model_line_capacity
+    }
