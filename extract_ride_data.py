@@ -9,6 +9,7 @@ It supports CSV/TSV tabular formats as well as JSON.
 import os
 from collections import namedtuple
 from datetime import datetime
+import string
 import re
 import json
 from bisect import bisect_right
@@ -193,7 +194,8 @@ class ZeroLogHeader(LogHeader):
                 firmware_rev=self.value_from_lines(header_lines, prefix='Firmware rev.'),
                 board_rev=self.value_from_lines(header_lines, prefix='Board rev.'),
                 model=self.value_from_lines(header_lines, prefix='Model'))
-            self.model = decode_vin(self.mbb_metadata.vin)
+            self.model = decode_vin(self.mbb_metadata.vin)\
+                if all(c in string.printable for c in self.mbb_metadata.vin) else None
         elif self.log_source == 'BMS':
             initial_date = self.value_from_lines(header_lines, prefix='Initial date')
             self.bms_metadata = ZeroHeaderBMSMetadata(
